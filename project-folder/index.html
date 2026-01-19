@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Sights Fleet - CRM Dashboard (Supabase)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        body { background-color: #111827; }
+        .modal { transition: opacity 0.3s ease-in-out; }
+        .kanban-column { min-height: 500px; max-height: 80vh; overflow-y: auto; border-radius: 0.75rem; padding: 1rem; background-color: #1f2937; }
+        .kanban-card { cursor: grab; border-left: 4px solid; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans text-gray-100">
+    
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin text-6xl text-blue-400 mb-4"></i>
+            <p class="text-xl text-gray-200">Loading...</p>
+        </div>
+    </div>
+
+    <header class="bg-gray-800 shadow-xl sticky top-0 z-10 border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-blue-400">Motor Sights Fleet <span class="text-gray-300">CRM</span></h1>
+            <nav class="space-x-2">
+                <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-chart-line"></i> Dashboard</button>
+                <button onclick="showSection('pipeline')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-stream"></i> Pipeline</button>
+                <button onclick="showSection('customers')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-users"></i> Customers</button>
+                <button onclick="showSection('fleet')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-truck"></i> Fleet</button>
+                <button onclick="showSection('timeline')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-calendar-alt"></i> Timeline</button>
+                <button onclick="showSection('settings')" class="text-gray-400 hover:text-blue-400 font-medium transition p-2 rounded-lg"><i class="fas fa-cog"></i> Settings</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <section id="dashboard" class="space-y-8"></section>
+        <section id="pipeline" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Customer Pipeline 🛣️</h2>
+            <div id="kanbanContainer" class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));"></div>
+        </section>
+        <section id="customers" class="hidden space-y-8"></section>
+        <section id="fleet" class="hidden space-y-8"></section>
+        <section id="timeline" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Timeline 📅</h2>
+            <div id="calendar" class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700"></div>
+        </section>
+        <section id="settings" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Settings ⚙️</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-4">Customer Statuses</h3>
+                    <button onclick="toggleModal('customerStatusModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg mb-4 text-sm">+ Add Status</button>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700"><tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Color</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">Actions</th>
+                            </tr></thead>
+                            <tbody id="customerStatusesTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-4">Fleet Statuses</h3>
+                    <button onclick="toggleModal('fleetStatusModal')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-3 rounded-lg mb-4 text-sm">+ Add Status</button>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700"><tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Color</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">Actions</th>
+                            </tr></thead>
+                            <tbody id="fleetStatusesTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="customerModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50"></div>
+    <div id="fleetModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50"></div>
+    <div id="customerStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50"></div>
+    <div id="fleetStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50"></div>
+    <div id="taskModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50"></div>
+
+    <script>
+        const sb = window.supabase.createClient(
+            'https://oumwylsfvofeovnvlvvw.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91bXd5bHNmdm9mZW92bnZsdnZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjMyMjcsImV4cCI6MjA1MjkzOTIyN30.zua8RiIheXJQ3hmxryp7fA_SglouCHm'
+        );
+
+        let customers = [], fleet = [], customerStatuses = [], fleetStatuses = [], tasks = [], activityFeed = [], calendar;
+
+        function showLoading() { document.getElementById('loadingOverlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+
+        async function loadAllData() {
+            showLoading();
+            try {
+                const [c, f, cs, fs, t, a] = await Promise.all([
+                    sb.from('customers').select('*').order('created_at', { ascending: false }),
+                    sb.from('fleet').select('*').order('created_at', { ascending: false }),
+                    sb.from('customer_statuses').select('*').order('sort_order'),
+                    sb.from('fleet_statuses').select('*').order('sort_order'),
+                    sb.from('tasks').select('*').order('created_at', { ascending: false }),
+                    sb.from('activity_feed').select('*').order('timestamp', { ascending: false }).limit(10)
+                ]);
+                
+                customers = (c.data || []).map(x => ({
+                    id: x.id, companyName: x.company_name, contactPerson: x.contact_person,
+                    location: x.location, acquisitionType: x.acquisition_type,
+                    estimatedRevenue: x.estimated_revenue, numberOfDevice: x.number_of_device,
+                    serviceType: x.service_type, classificationType: x.classification_type,
+                    terrainType: x.terrain_type, progressStatus: x.progress_status,
+                    startDate: x.start_date, expectedEndDate: x.expected_end_date, notes: x.notes
+                }));
+                
+                fleet = (f.data || []).map(x => ({
+                    id: x.id, plateNumber: x.plate_number, unitBrand: x.unit_brand,
+                    vehicleType: x.vehicle_type, customerId: x.customer_id,
+                    fmsStatus: x.fms_status, installDate: x.install_date
+                }));
+                
+                customerStatuses = (cs.data || []).map(x => ({ id: x.id, name: x.name, color: x.color }));
+                fleetStatuses = (fs.data || []).map(x => ({ id: x.id, name: x.name, color: x.color }));
+                tasks = (t.data || []).map(x => ({ id: x.id, customerId: x.customer_id, name: x.name, isCompleted: x.is_completed, dueDate: x.due_date }));
+                activityFeed = a.data || [];
+                
+                renderAll();
+            } catch (error) {
+                console.error('Load error:', error);
+                alert('Database connection failed! Check console.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function saveCustomer(d) {
+            showLoading();
+            try {
+                const p = {
+                    company_name: d.companyName, contact_person: d.contactPerson, location: d.location,
+                    acquisition_type: d.acquisitionType, estimated_revenue: parseInt(d.estimatedRevenue) || null,
+                    number_of_device: parseInt(d.numberOfDevice) || null, service_type: d.serviceType,
+                    classification_type: d.classificationType, terrain_type: d.terrainType,
+                    progress_status: d.progressStatus, start_date: d.startDate || null,
+                    expected_end_date: d.expectedEndDate || null, notes: d.notes
+                };
+                if (d.id) {
+                    await sb.from('customers').update(p).eq('id', d.id);
+                    await addActivity('CUSTOMER_UPDATE', `Updated ${d.companyName}`);
+                } else {
+                    await sb.from('customers').insert([p]);
+                    await addActivity('CUSTOMER_ADD', `Added ${d.companyName}`);
+                }
+                await loadAllData();
+            } catch (e) { console.error(e); alert('Save failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function deleteCustomer(id) {
+            if (!confirm('Delete customer?')) return;
+            showLoading();
+            try { await sb.from('customers').delete().eq('id', id); await loadAllData(); }
+            catch (e) { console.error(e); alert('Delete failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function saveFleet(d) {
+            showLoading();
+            try {
+                const p = {
+                    plate_number: d.plateNumber.toUpperCase(), unit_brand: d.unitBrand,
+                    vehicle_type: d.vehicleType, customer_id: d.customerId,
+                    fms_status: d.fmsStatus, install_date: d.installDate || null
+                };
+                if (d.id) {
+                    await sb.from('fleet').update(p).eq('id', d.id);
+                    await addActivity('FLEET_UPDATE', `Updated ${d.plateNumber}`);
+                } else {
+                    await sb.from('fleet').insert([p]);
+                    await addActivity('FLEET_ADD', `Added ${d.plateNumber}`);
+                }
+                await loadAllData();
+            } catch (e) { console.error(e); alert('Save failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function deleteFleet(id) {
+            if (!confirm('Delete fleet?')) return;
+            showLoading();
+            try { await sb.from('fleet').delete().eq('id', id); await loadAllData(); }
+            catch (e) { console.error(e); alert('Delete failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function saveTask(d) {
+            showLoading();
+            try {
+                const p = { customer_id: d.customerId, name: d.name, is_completed: d.isCompleted || false, due_date: d.dueDate || null };
+                if (d.id) await sb.from('tasks').update(p).eq('id', d.id);
+                else await sb.from('tasks').insert([p]);
+                await loadAllData();
+                renderTasks(d.customerId);
+            } catch (e) { console.error(e); alert('Save task failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm('Delete task?')) return;
+            showLoading();
+            try {
+                const t = tasks.find(x => x.id === id);
+                await sb.from('tasks').delete().eq('id', id);
+                await loadAllData();
+                if (t) renderTasks(t.customerId);
+            } catch (e) { console.error(e); alert('Delete failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function toggleTaskCompletion(id, done) {
+            const t = tasks.find(x => x.id === id);
+            if (t) {
+                t.isCompleted = done;
+                await saveTask(t);
+            }
+        }
+
+        async function addActivity(type, desc) {
+            try { await sb.from('activity_feed').insert([{ type, description: desc }]); }
+            catch (e) { console.error(e); }
+        }
+
+        async function saveCustomerStatus(d) {
+            showLoading();
+            try {
+                const p = { name: d.name, color: d.color };
+                if (d.id) await sb.from('customer_statuses').update(p).eq('id', d.id);
+                else await sb.from('customer_statuses').insert([p]);
+                await loadAllData();
+            } catch (e) { console.error(e); alert('Save status failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function deleteCustomerStatus(id) {
+            if (!confirm('Delete status?')) return;
+            showLoading();
+            try { await sb.from('customer_statuses').delete().eq('id', id); await loadAllData(); }
+            catch (e) { console.error(e); alert('Delete failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function saveFleetStatus(d) {
+            showLoading();
+            try {
+                const p = { name: d.name, color: d.color };
+                if (d.id) await sb.from('fleet_statuses').update(p).eq('id', d.id);
+                else await sb.from('fleet_statuses').insert([p]);
+                await loadAllData();
+            } catch (e) { console.error(e); alert('Save status failed!'); }
+            finally { hideLoading(); }
+        }
+
+        async function deleteFleetStatus(id) {
+            if (!confirm('Delete status?')) return;
+            showLoading();
+            try { await sb.from('fleet_statuses').delete().eq('id', id); await loadAllData(); }
+            catch (e) { console.error(e); alert('Delete failed!'); }
+            finally { hideLoading(); }
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            if (id === 'customers') renderCustomerSection();
+            else if (id === 'fleet') renderFleetSection();
+            else if (id === 'pipeline') renderKanbanBoard();
+            else if (id === 'timeline') renderTimeline();
+        }
+
+        function toggleModal(id, data = null) {
+            const m = document.getElementById(id);
+            const isHidden = m.classList.contains('hidden');
+            if (isHidden) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+                if (id === 'customerModal') {
+                    populateProgressStatusSelect();
+                    if (data) {
+                        document.getElementById('customerId').value = data.id;
+                        document.getElementById('companyName').value = data.companyName;
+                        document.getElementById('contactPerson').value = data.contactPerson;
+                        document.getElementById('location').value = data.location || '';
+                        document.getElementById('acquisitionType').value = data.acquisitionType || 'direct selling';
+                        document.getElementById('estimatedRevenue').value = data.estimatedRevenue || '';
+                        document.getElementById('numberOfDevice').value = data.numberOfDevice || '';
+                        document.getElementById('serviceType').value = data.serviceType;
+                        document.getElementById('classificationType').value = data.classificationType || 'EV with FMC 650';
+                        document.getElementById('terrainType').value = data.terrainType || 'On the road';
+                        document.getElementById('progressStatus').value = data.progressStatus;
+                        document.getElementById('startDate').value = data.startDate || '';
+                        document.getElementById('expectedEndDate').value = data.expectedEndDate || '';
+                        document.getElementById('notes').value = data.notes || '';
+                    } else {
+                        document.getElementById('customerId').value = '';
+                    }
+                } else if (id === 'fleetModal') {
+                    populateCustomerOwnerSelect();
+                    populateFmsStatusSelect();
+                    if (data) {
+                        document.getElementById('fleetId').value = data.id;
+                        document.getElementById('plateNumber').value = data.plateNumber;
+                        document.getElementById('unitBrand').value = data.unitBrand || '';
+                        document.getElementById('vehicleType').value = data.vehicleType;
+                        document.getElementById('customerOwner').value = data.customerId;
+                        document.getElementById('fmsStatus').value = data.fmsStatus;
+                        document.getElementById('installDate').value = data.installDate || '';
+                    } else {
+                        document.getElementById('fleetId').value = '';
+                    }
+                } else if (id === 'customerStatusModal') {
+                    if (data) {
+                        document.getElementById('customerStatusId').value = data.id;
+                        document.getElementById('csName').value = data.name;
+                        document.getElementById('csColor').value = data.color;
+                    } else {
+                        document.getElementById('customerStatusId').value = '';
+                    }
+                } else if (id === 'fleetStatusModal') {
+                    if (data) {
+                        document.getElementById('fleetStatusId').value = data.id;
+                        document.getElementById('fsName').value = data.name;
+                        document.getElementById('fsColor').value = data.color;
+                    } else {
+                        document.getElementById('fleetStatusId').value = '';
+                    }
+                } else if (id === 'taskModal' && data) {
+                    document.getElementById('taskCustomerId').value = data.id;
+                    document.getElementById('taskCustomerName').textContent = data.companyName;
+                    renderTasks(data.id);
+                }
+            } else {
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+            }
+        }
+
+        function populateProgressStatusSelect() {
+            const sel = document.getElementById('progressStatus');
+            if (!sel) return;
+            sel.innerHTML = '';
+            customerStatuses.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.name;
+                opt.textContent = s.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function populateFmsStatusSelect() {
+            const sel = document.getElementById('fmsStatus');
+            if (!sel) return;
+            sel.innerHTML = '';
+            fleetStatuses.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.name;
+                opt.textContent = s.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function populateCustomerOwnerSelect() {
+            const sel = document.getElementById('customerOwner');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Select Customer --</option>';
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.companyName;
+                sel.appendChild(opt);
+            });
+        }
+
+        function editCustomer(id) {
+            const c = customers.find(x => x.id === id);
+            if (c) toggleModal('customerModal', c);
+        }
+
+        function editFleet(id) {
+            const f = fleet.find(x => x.id === id);
+            if (f) toggleModal('fleetModal', f);
+        }
+
+        function editCustomerStatus(id) {
+            const s = customerStatuses.find(x => x.id === id);
+            if (s) toggleModal('customerStatusModal', s);
+        }
+
+        function editFleetStatus(id) {
+            const s = fleetStatuses.find(x => x.id === id);
+            if (s) toggleModal('fleetStatusModal', s);
+        }
+
+        // --- RENDERING LOGIC ---
+
+        function renderAll() {
+            renderDashboard();
+            renderKanbanBoard();
+            renderCustomerSection();
+            renderFleetSection();
+            renderSettings();
+            if (calendar) calendar.refetchEvents();
+        }
+
+        function renderDashboard() {
+            const container = document.getElementById('dashboard');
+            const totalRevenue = customers.reduce((sum, c) => sum + (c.estimatedRevenue || 0), 0);
+            const totalDevices = customers.reduce((sum, c) => sum + (c.numberOfDevice || 0), 0);
+
+            container.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Executive Dashboard 📊</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-gray-400 text-sm uppercase font-bold">Total Pipeline</p>
+                        <p class="text-3xl font-bold text-blue-400">Rp ${totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-gray-400 text-sm uppercase font-bold">Active Customers</p>
+                        <p class="text-3xl font-bold text-green-400">${customers.length}</p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-gray-400 text-sm uppercase font-bold">Total Devices</p>
+                        <p class="text-3xl font-bold text-purple-400">${totalDevices}</p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-gray-400 text-sm uppercase font-bold">Fleet Size</p>
+                        <p class="text-3xl font-bold text-yellow-400">${fleet.length}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                        <h3 class="text-xl font-bold mb-4">Recent Activity</h3>
+                        <div class="space-y-4">
+                            ${activityFeed.map(a => `
+                                <div class="flex items-center space-x-3 text-sm border-b border-gray-700 pb-2">
+                                    <span class="text-blue-400 font-mono">[${new Date(a.timestamp).toLocaleTimeString()}]</span>
+                                    <span class="text-gray-300">${a.description}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderKanbanBoard() {
+            const container = document.getElementById('kanbanContainer');
+            container.innerHTML = '';
+
+            customerStatuses.forEach(status => {
+                const col = document.createElement('div');
+                col.className = 'kanban-column bg-gray-800 rounded-xl p-4 border border-gray-700';
+                col.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg uppercase tracking-wider" style="color: ${status.color}">${status.name}</h3>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-xs text-gray-300">
+                            ${customers.filter(c => c.progressStatus === status.name).length}
+                        </span>
+                    </div>
+                    <div id="status-${status.name.replace(/\s+/g, '-')}" class="space-y-3 min-h-[400px]" data-status="${status.name}"></div>
+                `;
+                container.appendChild(col);
+
+                const listEl = document.getElementById(`status-${status.name.replace(/\s+/g, '-')}`);
+                const statusCustomers = customers.filter(c => c.progressStatus === status.name);
+
+                statusCustomers.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = 'kanban-card bg-gray-700 p-4 rounded-lg shadow-md hover:bg-gray-650 transition cursor-pointer';
+                    card.style.borderColor = status.color;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-blue-300">${c.companyName}</h4>
+                            <button onclick="editCustomer('${c.id}')" class="text-gray-400 hover:text-white"><i class="fas fa-edit text-xs"></i></button>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-2"><i class="fas fa-user mr-1"></i> ${c.contactPerson}</p>
+                        <div class="flex justify-between items-center mt-3">
+                            <span class="text-xs font-bold text-green-400">Rp ${c.estimatedRevenue?.toLocaleString() || 0}</span>
+                            <button onclick="toggleModal('taskModal', {id: '${c.id}', companyName: '${c.companyName}'})" class="text-xs bg-gray-600 px-2 py-1 rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-tasks mr-1"></i> Tasks
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+
+                new Sortable(listEl, {
+                    group: 'pipeline',
+                    animation: 150,
+                    onEnd: async (evt) => {
+                        const customerId = evt.item.querySelector('h4').textContent; // Note: simplified search
+                        const targetStatus = evt.to.dataset.status;
+                        const customer = customers.find(c => c.companyName === customerId);
+                        if (customer && customer.progressStatus !== targetStatus) {
+                            customer.progressStatus = targetStatus;
+                            await saveCustomer(customer);
+                        }
+                    }
+                });
+            });
+        }
+
+        function renderCustomerSection() {
+            const container = document.getElementById('customers');
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-bold text-gray-200">Customer List 👥</h2>
+                    <button onclick="toggleModal('customerModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition">
+                        + Add New Customer
+                    </button>
+                </div>
+                <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Company</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Revenue</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            ${customers.map(c => `
+                                <tr class="hover:bg-gray-750 transition">
+                                    <td class="px-6 py-4 font-bold text-blue-400">${c.companyName}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-300">${c.contactPerson}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-900 text-gray-300">
+                                            ${c.progressStatus}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm font-mono">Rp ${c.estimatedRevenue?.toLocaleString() || 0}</td>
+                                    <td class="px-6 py-4 text-right space-x-2">
+                                        <button onclick="editCustomer('${c.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i></button>
+                                        <button onclick="deleteCustomer('${c.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderFleetSection() {
+            const container = document.getElementById('fleet');
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-bold text-gray-200">Fleet Management 🚛</h2>
+                    <button onclick="toggleModal('fleetModal')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition">
+                        + Add New Fleet
+                    </button>
+                </div>
+                <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Plate</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Owner</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            ${fleet.map(f => {
+                                const owner = customers.find(c => c.id === f.customerId);
+                                return `
+                                    <tr class="hover:bg-gray-750 transition">
+                                        <td class="px-6 py-4 font-mono font-bold text-yellow-500">${f.plateNumber}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-300">${owner ? owner.companyName : '-'}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-900/40 text-blue-300">
+                                                ${f.fmsStatus}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right space-x-2">
+                                            <button onclick="editFleet('${f.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i></button>
+                                            <button onclick="deleteFleet('${f.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderSettings() {
+            const csBody = document.getElementById('customerStatusesTableBody');
+            csBody.innerHTML = customerStatuses.map(s => `
+                <tr>
+                    <td class="px-6 py-4 text-sm font-bold text-gray-200">${s.name}</td>
+                    <td class="px-6 py-4"><div class="w-6 h-6 rounded border border-gray-600" style="background-color: ${s.color}"></div></td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="editCustomerStatus('${s.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit text-xs"></i></button>
+                        <button onclick="deleteCustomerStatus('${s.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash text-xs"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const fsBody = document.getElementById('fleetStatusesTableBody');
+            fsBody.innerHTML = fleetStatuses.map(s => `
+                <tr>
+                    <td class="px-6 py-4 text-sm font-bold text-gray-200">${s.name}</td>
+                    <td class="px-6 py-4"><div class="w-6 h-6 rounded border border-gray-600" style="background-color: ${s.color}"></div></td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="editFleetStatus('${s.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit text-xs"></i></button>
+                        <button onclick="deleteFleetStatus('${s.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash text-xs"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderTasks(customerId) {
+            const taskList = document.getElementById('taskList');
+            if (!taskList) return;
+            const customerTasks = tasks.filter(t => t.customerId === customerId);
+            taskList.innerHTML = customerTasks.map(t => `
+                <div class="flex items-center justify-between bg-gray-700 p-3 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" ${t.isCompleted ? 'checked' : ''} 
+                            onchange="toggleTaskCompletion('${t.id}', this.checked)"
+                            class="w-5 h-5 rounded border-gray-600 text-blue-600 focus:ring-blue-500">
+                        <span class="${t.isCompleted ? 'line-through text-gray-500' : 'text-gray-200'}">${t.name}</span>
+                    </div>
+                    <button onclick="deleteTask('${t.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function renderTimeline() {
+            const calendarEl = document.getElementById('calendar');
+            if (!calendar) {
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    themeSystem: 'standard',
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+                    events: customers.map(c => ({
+                        title: `🏁 ${c.companyName} (End)`,
+                        start: c.expectedEndDate,
+                        color: '#ef4444'
+                    })).concat(customers.map(c => ({
+                        title: `🚀 ${c.companyName} (Start)`,
+                        start: c.startDate,
+                        color: '#3b82f6'
+                    })))
+                });
+                calendar.render();
+            }
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllData();
+            showSection('dashboard');
+        });
+    </script>
+</body>
+</html>

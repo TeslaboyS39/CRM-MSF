@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Motor Sights Fleet - CRM Dashboard (Dark Mode)</title>
+    <script src="config.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        /* Custom Scrollbar Styling for Dark Mode */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        body { background-color: #111827; }
+
+        .modal { transition: opacity 0.3s ease-in-out; }
+
+        /* Kanban Specific Styling */
+        .kanban-column {
+            min-height: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            background-color: #1f2937; /* bg-gray-800 */
+        }
+        .kanban-card {
+            cursor: grab;
+            border-left: 4px solid; /* Color will be set by inline style */
+        }
+        .kanban-column.sortable-ghost { opacity: 0.5; }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans text-gray-100">
+
+    <header class="bg-gray-800 shadow-xl sticky top-0 z-10 border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-blue-400">Motor Sights Fleet <span class="text-gray-300">CRM</span></h1>
+            <nav class="space-x-4">
+                <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-chart-line"></i> Dashboard</button>
+                <button onclick="showSection('pipeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-stream"></i> Pipeline</button>
+                <button onclick="showSection('customers')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-users"></i> Customers</button>
+                <button onclick="showSection('fleet')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-truck"></i> Fleet</button>
+                <button onclick="showSection('timeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-calendar-alt"></i> Timeline</button>
+                <button onclick="showSection('reports')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-file-export"></i> Reports</button>
+                <button onclick="showSection('settings')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-cog"></i> Settings</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Loading Overlay for async operations -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mx-auto"></div>
+            <p class="text-gray-200 mt-4">Loading...</p>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <section id="dashboard" class="space-y-8"></section>
+
+        <section id="pipeline" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Customer Progress Pipeline 🛣️</h2>
+            <div id="kanbanContainer" class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                </div>
+        </section>
+
+        <section id="customers" class="hidden space-y-8"></section>
+        <section id="fleet" class="hidden space-y-8"></section>
+
+        <section id="timeline" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Timeline Calendar (Installation & Due Dates) 📅</h2>
+            <div id="calendar" class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700"></div>
+        </section>
+
+        <section id="reports" class="hidden space-y-8"></section>
+
+        <section id="settings" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Status and Data Settings ⚙️</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-4">Customer Statuses</h3>
+                    <button onclick="toggleModal('customerStatusModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg shadow-md mb-4 text-sm">
+                        + Add Status
+                    </button>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Color</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerStatusesTableBody" class="bg-gray-800 divide-y divide-gray-700">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-4">Fleet Status (FMS)</h3>
+                    <button onclick="toggleModal('fleetStatusModal')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-3 rounded-lg shadow-md mb-4 text-sm">
+                        + Add Status
+                    </button>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Color</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fleetStatusesTableBody" class="bg-gray-800 divide-y divide-gray-700">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <div id="customerModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    <div id="fleetModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    <div id="customerStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    <div id="fleetStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    <div id="taskModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    
+    <script>
+        // ==============================================
+        // SUPABASE CONFIGURATION (loaded from config.js)
+        // ==============================================
+        const SUPABASE_URL = CONFIG.SUPABASE_URL;
+        const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ==============================================
+        // DATA VARIABLES (populated from Supabase)
+        // ==============================================
+        let customers = [];
+        let fleet = [];
+        let customerStatuses = [];
+        let fleetStatuses = [];
+        let tasks = [];
+        let activityFeed = [];
+        let calendar; // FullCalendar instance
+
+        // Default statuses (used if database is empty)
+        const DEFAULT_CUSTOMER_STATUSES = [
+            {name: 'Lead', color: '#3b82f6', sort_order: 1},
+            {name: 'Onboarding', color: '#f59e0b', sort_order: 2},
+            {name: 'Active', color: '#10b981', sort_order: 3},
+            {name: 'Maintenance', color: '#8b5cf6', sort_order: 4},
+            {name: 'Completed', color: '#6b7280', sort_order: 5}
+        ];
+        const DEFAULT_FLEET_STATUSES = [
+            {name: 'Inactive', color: '#ef4444', sort_order: 1},
+            {name: 'Testing', color: '#eab308', sort_order: 2},
+            {name: 'Active', color: '#10b981', sort_order: 3},
+            {name: 'Maintenance', color: '#a855f7', sort_order: 4}
+        ];
+
+        // ==============================================
+        // LOADING OVERLAY FUNCTIONS
+        // ==============================================
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        }
+
+        // ==============================================
+        // DATA MAPPING FUNCTIONS (DB snake_case <-> JS camelCase)
+        // ==============================================
+        function mapCustomerFromDB(row) {
+            return {
+                id: row.id,
+                companyName: row.company_name,
+                contactPerson: row.contact_person,
+                location: row.location,
+                acquisitionType: row.acquisition_type,
+                estimatedRevenue: row.estimated_revenue,
+                numberOfDevice: row.number_of_device,
+                serviceType: row.service_type,
+                classificationType: row.classification_type,
+                terrainType: row.terrain_type,
+                progressStatus: row.progress_status,
+                startDate: row.start_date,
+                expectedEndDate: row.expected_end_date,
+                notes: row.notes
+            };
+        }
+
+        function mapCustomerToDB(customer) {
+            return {
+                company_name: customer.companyName,
+                contact_person: customer.contactPerson,
+                location: customer.location || null,
+                acquisition_type: customer.acquisitionType,
+                estimated_revenue: customer.estimatedRevenue ? parseInt(customer.estimatedRevenue) : null,
+                number_of_device: customer.numberOfDevice ? parseInt(customer.numberOfDevice) : null,
+                service_type: customer.serviceType,
+                classification_type: customer.classificationType,
+                terrain_type: customer.terrainType,
+                progress_status: customer.progressStatus,
+                start_date: customer.startDate || null,
+                expected_end_date: customer.expectedEndDate || null,
+                notes: customer.notes || null
+            };
+        }
+
+        function mapFleetFromDB(row) {
+            return {
+                id: row.id,
+                plateNumber: row.plate_number,
+                unitBrand: row.unit_brand,
+                vehicleType: row.vehicle_type,
+                customerId: row.customer_id,
+                fmsStatus: row.fms_status,
+                installDate: row.install_date
+            };
+        }
+
+        function mapFleetToDB(fleetItem) {
+            return {
+                plate_number: fleetItem.plateNumber,
+                unit_brand: fleetItem.unitBrand || null,
+                vehicle_type: fleetItem.vehicleType,
+                customer_id: fleetItem.customerId,
+                fms_status: fleetItem.fmsStatus,
+                install_date: fleetItem.installDate || null
+            };
+        }
+
+        function mapTaskFromDB(row) {
+            return {
+                id: row.id,
+                customerId: row.customer_id,
+                name: row.name,
+                isCompleted: row.is_completed,
+                dueDate: row.due_date
+            };
+        }
+
+        function mapTaskToDB(task) {
+            return {
+                customer_id: task.customerId,
+                name: task.name,
+                is_completed: task.isCompleted || false,
+                due_date: task.dueDate || null
+            };
+        }
+
+        function mapStatusFromDB(row) {
+            return {
+                id: row.id,
+                name: row.name,
+                color: row.color,
+                sortOrder: row.sort_order
+            };
+        }
+
+        function mapStatusToDB(status, sortOrder = null) {
+            return {
+                name: status.name,
+                color: status.color,
+                sort_order: sortOrder !== null ? sortOrder : (status.sortOrder || 0)
+            };
+        }
+
+        // ==============================================
+        // ASYNC DATA LOADING FROM SUPABASE
+        // ==============================================
+        async function loadAllData() {
+            showLoading(true);
+            try {
+                const [custRes, fleetRes, custStatusRes, fleetStatusRes, taskRes, activityRes] = await Promise.all([
+                    supabaseClient.from('customers').select('*').order('created_at', { ascending: false }),
+                    supabaseClient.from('fleet').select('*').order('created_at', { ascending: false }),
+                    supabaseClient.from('customer_statuses').select('*').order('sort_order'),
+                    supabaseClient.from('fleet_statuses').select('*').order('sort_order'),
+                    supabaseClient.from('tasks').select('*').order('created_at', { ascending: false }),
+                    supabaseClient.from('activity_feed').select('*').order('timestamp', { ascending: false }).limit(10)
+                ]);
+
+                // Check for errors
+                if (custRes.error) console.error('Error loading customers:', custRes.error);
+                if (fleetRes.error) console.error('Error loading fleet:', fleetRes.error);
+                if (custStatusRes.error) console.error('Error loading customer statuses:', custStatusRes.error);
+                if (fleetStatusRes.error) console.error('Error loading fleet statuses:', fleetStatusRes.error);
+                if (taskRes.error) console.error('Error loading tasks:', taskRes.error);
+                if (activityRes.error) console.error('Error loading activity feed:', activityRes.error);
+
+                // Map data from DB format to JS format
+                customers = (custRes.data || []).map(mapCustomerFromDB);
+                fleet = (fleetRes.data || []).map(mapFleetFromDB);
+                customerStatuses = (custStatusRes.data || []).map(mapStatusFromDB);
+                fleetStatuses = (fleetStatusRes.data || []).map(mapStatusFromDB);
+                tasks = (taskRes.data || []).map(mapTaskFromDB);
+                activityFeed = activityRes.data || [];
+
+                // Initialize default statuses if empty
+                if (customerStatuses.length === 0) {
+                    await initializeDefaultStatuses('customer_statuses', DEFAULT_CUSTOMER_STATUSES);
+                    const { data } = await supabaseClient.from('customer_statuses').select('*').order('sort_order');
+                    customerStatuses = (data || []).map(mapStatusFromDB);
+                }
+                if (fleetStatuses.length === 0) {
+                    await initializeDefaultStatuses('fleet_statuses', DEFAULT_FLEET_STATUSES);
+                    const { data } = await supabaseClient.from('fleet_statuses').select('*').order('sort_order');
+                    fleetStatuses = (data || []).map(mapStatusFromDB);
+                }
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data from database. Please check your connection.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function initializeDefaultStatuses(tableName, defaultStatuses) {
+            try {
+                const { error } = await supabaseClient.from(tableName).insert(defaultStatuses);
+                if (error) console.error(`Error initializing ${tableName}:`, error);
+            } catch (error) {
+                console.error(`Error initializing ${tableName}:`, error);
+            }
+        }
+
+        // ==============================================
+        // ASYNC SAVE FUNCTIONS (to Supabase)
+        // ==============================================
+        async function saveCustomerToDB(customerData) {
+            const payload = mapCustomerToDB(customerData);
+
+            if (customerData.id) {
+                // Update existing
+                const { data, error } = await supabaseClient
+                    .from('customers')
+                    .update(payload)
+                    .eq('id', customerData.id)
+                    .select();
+                if (error) throw error;
+                return mapCustomerFromDB(data[0]);
+            } else {
+                // Insert new
+                const { data, error } = await supabaseClient
+                    .from('customers')
+                    .insert([payload])
+                    .select();
+                if (error) throw error;
+                return mapCustomerFromDB(data[0]);
+            }
+        }
+
+        async function saveFleetToDB(fleetData) {
+            const payload = mapFleetToDB(fleetData);
+
+            if (fleetData.id) {
+                // Update existing
+                const { data, error } = await supabaseClient
+                    .from('fleet')
+                    .update(payload)
+                    .eq('id', fleetData.id)
+                    .select();
+                if (error) throw error;
+                return mapFleetFromDB(data[0]);
+            } else {
+                // Insert new
+                const { data, error } = await supabaseClient
+                    .from('fleet')
+                    .insert([payload])
+                    .select();
+                if (error) throw error;
+                return mapFleetFromDB(data[0]);
+            }
+        }
+
+        async function saveTaskToDB(taskData) {
+            const payload = mapTaskToDB(taskData);
+
+            if (taskData.id) {
+                // Update existing
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .update(payload)
+                    .eq('id', taskData.id)
+                    .select();
+                if (error) throw error;
+                return mapTaskFromDB(data[0]);
+            } else {
+                // Insert new
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert([payload])
+                    .select();
+                if (error) throw error;
+                return mapTaskFromDB(data[0]);
+            }
+        }
+
+        async function saveCustomerStatusToDB(statusData) {
+            const sortOrder = statusData.sortOrder || customerStatuses.length + 1;
+            const payload = mapStatusToDB(statusData, sortOrder);
+
+            if (statusData.id) {
+                // Update existing
+                const { data, error } = await supabaseClient
+                    .from('customer_statuses')
+                    .update(payload)
+                    .eq('id', statusData.id)
+                    .select();
+                if (error) throw error;
+                return mapStatusFromDB(data[0]);
+            } else {
+                // Insert new
+                const { data, error } = await supabaseClient
+                    .from('customer_statuses')
+                    .insert([payload])
+                    .select();
+                if (error) throw error;
+                return mapStatusFromDB(data[0]);
+            }
+        }
+
+        async function saveFleetStatusToDB(statusData) {
+            const sortOrder = statusData.sortOrder || fleetStatuses.length + 1;
+            const payload = mapStatusToDB(statusData, sortOrder);
+
+            if (statusData.id) {
+                // Update existing
+                const { data, error } = await supabaseClient
+                    .from('fleet_statuses')
+                    .update(payload)
+                    .eq('id', statusData.id)
+                    .select();
+                if (error) throw error;
+                return mapStatusFromDB(data[0]);
+            } else {
+                // Insert new
+                const { data, error } = await supabaseClient
+                    .from('fleet_statuses')
+                    .insert([payload])
+                    .select();
+                if (error) throw error;
+                return mapStatusFromDB(data[0]);
+            }
+        }
+
+        // ==============================================
+        // ASYNC DELETE FUNCTIONS
+        // ==============================================
+        async function deleteCustomerFromDB(id) {
+            // Delete associated tasks and fleet first
+            const { error: tasksError } = await supabaseClient.from('tasks').delete().eq('customer_id', id);
+            if (tasksError) console.error('Error deleting tasks:', tasksError);
+
+            const { error: fleetError } = await supabaseClient.from('fleet').delete().eq('customer_id', id);
+            if (fleetError) console.error('Error deleting fleet:', fleetError);
+
+            const { error } = await supabaseClient.from('customers').delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        async function deleteFleetFromDB(id) {
+            const { error } = await supabaseClient.from('fleet').delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        async function deleteTaskFromDB(id) {
+            const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        async function deleteCustomerStatusFromDB(id) {
+            const { error } = await supabaseClient.from('customer_statuses').delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        async function deleteFleetStatusFromDB(id) {
+            const { error } = await supabaseClient.from('fleet_statuses').delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        // ==============================================
+        // ASYNC ACTIVITY FEED
+        // ==============================================
+        async function addActivity(type, description) {
+            try {
+                await supabaseClient.from('activity_feed').insert([{ type, description }]);
+                // Refresh activity feed
+                const { data } = await supabaseClient
+                    .from('activity_feed')
+                    .select('*')
+                    .order('timestamp', { ascending: false })
+                    .limit(10);
+                activityFeed = data || [];
+                renderDashboard();
+            } catch (error) {
+                console.error('Error adding activity:', error);
+            }
+        }
+
+        // Legacy sync functions (now just trigger renderAll, actual saving is done async)
+        function saveCustomers() { renderAll(); }
+        function saveFleet() { renderAll(); }
+        function saveCustomerStatuses() { renderAll(); }
+        function saveFleetStatuses() { renderAll(); }
+        function saveTasks() { renderAll(); }
+
+        // --- Core UI Logic (Modal and Section Rendering) ---
+        function showSection(sectionId) {
+            document.querySelectorAll('section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            // --- FIX: Call structural render functions for Customer and Fleet here ---
+            if (sectionId === 'customers') {
+                renderCustomerSection();
+            } else if (sectionId === 'fleet') {
+                renderFleetSection();
+            }
+            
+            renderAll();
+            // Special initialization for Kanban/Timeline
+            if (sectionId === 'pipeline') {
+                renderKanbanBoard();
+            } else if (sectionId === 'timeline') {
+                renderTimeline();
+            }
+        }
+
+        // --- Modal Content Injection ---
+        // Customer Modal - DIBUAT SCROLLABLE
+        document.getElementById('customerModal').innerHTML = `
+            <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-700 flex flex-col max-h-[90vh]">
+                <h3 class="text-2xl font-bold text-blue-400 p-8 pb-4">Customer Data</h3>
+                
+                <form id="customerForm" class="flex flex-col overflow-hidden h-full">
+                    
+                    <div class="space-y-4 px-8 overflow-y-auto flex-grow pr-4"> 
+                        <input type="hidden" id="customerId">
+                        <div>
+                            <label for="companyName" class="block text-sm font-medium text-gray-300">Company Name</label>
+                            <input type="text" id="companyName" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                        </div>
+                        <div>
+                            <label for="contactPerson" class="block text-sm font-medium text-gray-300">Primary Contact</label>
+                            <input type="text" id="contactPerson" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                        </div>
+                        <div>
+                            <label for="location" class="block text-sm font-medium text-gray-300">Customer Location (Optional)</label>
+                            <input type="text" id="location" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                        </div>
+                        <div>
+                            <label for="acquisitionType" class="block text-sm font-medium text-gray-300">Acquisition Type</label>
+                            <select id="acquisitionType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                                <option value="direct selling">Direct Selling</option>
+                                <option value="bundling with IEC">Bundling with IEC</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="estimatedRevenue" class="block text-sm font-medium text-gray-300">Estimated Revenue (Optional, IDR)</label>
+                            <input type="number" id="estimatedRevenue" min="0" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., 5000000">
+                        </div>
+                        <div>
+                            <label for="numberOfDevice" class="block text-sm font-medium text-gray-300">Number of Devices (Optional)</label>
+                            <input type="number" id="numberOfDevice" min="0" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., 10">
+                        </div>
+                        
+                        <div>
+                            <label for="serviceType" class="block text-sm font-medium text-gray-300">Service Type</label>
+                            <select id="serviceType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                                <option value="Lite Version">Lite Version</option>
+                                <option value="Standard-Full Safety Base">Standard-Full Safety Base</option>
+                                <option value="Standard-Full Safety Plus">Standard-Full Safety Plus</option>
+                                <option value="Standard-Full Safety Pro+">Standard-Full Safety Pro+</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="classificationType" class="block text-sm font-medium text-gray-300">Classification Type</label>
+                            <select id="classificationType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                                <option value="EV with FMC 650">EV with FMC 650</option>
+                                <option value="ICE with FMC 150">ICE with FMC 150</option>
+                                <option value="ICE with FMC 650">ICE with FMC 650</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="terrainType" class="block text-sm font-medium text-gray-300">Terrain Type</label>
+                            <select id="terrainType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                                <option value="On the road">On the road</option>
+                                <option value="Off the road">Off the road</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="progressStatus" class="block text-sm font-medium text-gray-300">Progress Status</label>
+                            <select id="progressStatus" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
+                        </div>
+                        <div>
+                            <label for="startDate" class="block text-sm font-medium text-gray-300">Start Date</label>
+                            <input type="date" id="startDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="expectedEndDate" class="block text-sm font-medium text-gray-300">Expected End Date</label>
+                            <input type="date" id="expectedEndDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="notes" class="block text-sm font-medium text-gray-300">Notes</label>
+                            <textarea id="notes" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 p-4 border-t border-gray-700 bg-gray-800">
+                        <button type="button" onclick="toggleModal('customerModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Save Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        // Fleet Modal
+        document.getElementById('fleetModal').innerHTML = `
+            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-lg border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-green-400">Fleet Data</h3>
+                <form id="fleetForm" class="space-y-4">
+                    <input type="hidden" id="fleetId">
+                    <div>
+                        <label for="plateNumber" class="block text-sm font-medium text-gray-300">Plate Number</label>
+                        <input type="text" id="plateNumber" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400 uppercase">
+                    </div>
+                    <div>
+                        <label for="unitBrand" class="block text-sm font-medium text-gray-300">Unit Brand (Optional)</label>
+                        <input type="text" id="unitBrand" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., Toyota, Honda, Mitsubishi">
+                    </div>
+                    <div>
+                        <label for="vehicleType" class="block text-sm font-medium text-gray-300">Vehicle Type</label>
+                        <input type="text" id="vehicleType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label for="customerOwner" class="block text-sm font-medium text-gray-300">Owner (Customer)</label>
+                        <select id="customerOwner" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
+                    </div>
+                    <div>
+                        <label for="fmsStatus" class="block text-sm font-medium text-gray-300">FMS Status</label>
+                        <select id="fmsStatus" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
+                    </div>
+                    <div>
+                        <label for="installDate" class="block text-sm font-medium text-gray-300">Installation Date</label>
+                        <input type="date" id="installDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="toggleModal('fleetModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Save Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        // CUSTOMER STATUS MODAL (Color Picker Implemented)
+        document.getElementById('customerStatusModal').innerHTML = `
+            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">Customer Progress Status</h3>
+                <form id="customerStatusForm" class="space-y-4">
+                    <input type="hidden" id="customerStatusId">
+                    <div>
+                        <label for="statusName" class="block text-sm font-medium text-gray-300">Status Name</label>
+                        <input type="text" id="statusName" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label for="statusColor" class="block text-sm font-medium text-gray-300">Choose Color (Hex Code)</label>
+                        <input type="color" id="statusColor" required value="#3b82f6" class="mt-1 block w-full h-10 bg-gray-700 border border-gray-600 rounded-md shadow-sm p-1 cursor-pointer">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="toggleModal('customerStatusModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Save Status
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        // FLEET STATUS MODAL (Color Picker Implemented)
+        document.getElementById('fleetStatusModal').innerHTML = `
+            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-green-400">Fleet FMS Status</h3>
+                <form id="fleetStatusForm" class="space-y-4">
+                    <input type="hidden" id="fleetStatusId">
+                    <div>
+                        <label for="statusName" class="block text-sm font-medium text-gray-300">Status Name</label>
+                        <input type="text" id="statusName" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label for="statusColor" class="block text-sm font-medium text-gray-300">Choose Color (Hex Code)</label>
+                        <input type="color" id="statusColor" required value="#10b981" class="mt-1 block w-full h-10 bg-gray-700 border border-gray-600 rounded-md shadow-sm p-1 cursor-pointer">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="toggleModal('fleetStatusModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Save Status
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        // Task Modal
+        document.getElementById('taskModal').innerHTML = `
+            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-orange-400">Tasks for Customer: <span id="taskCustomerName"></span></h3>
+                
+                <div id="taskListContainer" class="space-y-4 mb-6 max-h-80 overflow-y-auto pr-2">
+                    </div>
+
+                <form id="taskForm" class="flex space-x-2 border-t border-gray-700 pt-4">
+                    <input type="hidden" id="taskCustomerId">
+                    <input type="text" id="taskNameInput" placeholder="New Task Name (e.g., QC Installation for 10 Units)" required class="flex-grow bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400">
+                    <input type="date" id="taskDueDateInput" class="bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                    <button type="submit" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 flex-shrink-0">
+                        Add Task
+                    </button>
+                </form>
+
+                <div class="flex justify-end pt-4">
+                    <button type="button" onclick="toggleModal('taskModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // --- Modal & Form Handlers ---
+
+        function toggleModal(modalId, data = null) {
+            const modal = document.getElementById(modalId);
+            const form = document.getElementById(modalId.replace('Modal', 'Form'));
+            if (form) form.reset();
+
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                // Logic Populate Form
+                if (modalId === 'customerModal') {
+                    populateProgressStatusSelect();
+                    if (data) {
+                        document.getElementById('customerId').value = data.id;
+                        document.getElementById('companyName').value = data.companyName;
+                        document.getElementById('contactPerson').value = data.contactPerson;
+                        // START: ADDED/CORRECTED CUSTOMER FIELDS (Location, Acquisition Type, Revenue, Devices)
+                        document.getElementById('location').value = data.location || '';
+                        document.getElementById('acquisitionType').value = data.acquisitionType || 'direct selling'; 
+                        document.getElementById('estimatedRevenue').value = data.estimatedRevenue || '';
+                        document.getElementById('numberOfDevice').value = data.numberOfDevice || '';
+                        // END: ADDED/CORRECTED CUSTOMER FIELDS
+                        document.getElementById('serviceType').value = data.serviceType;
+                        // NEW FIELD
+                        document.getElementById('classificationType').value = data.classificationType || 'EV with FMC 650'; 
+                        // NEW FIELD: TERRAIN TYPE
+                        document.getElementById('terrainType').value = data.terrainType || 'On the road';
+                        
+                        document.getElementById('progressStatus').value = data.progressStatus;
+                        document.getElementById('startDate').value = data.startDate || '';
+                        document.getElementById('expectedEndDate').value = data.expectedEndDate || '';
+                        document.getElementById('notes').value = data.notes || '';
+                    } else { document.getElementById('customerId').value = ''; }
+                } else if (modalId === 'fleetModal') {
+                    populateCustomerOwnerSelect();
+                    populateFmsStatusSelect();
+                    if (data) {
+                        document.getElementById('fleetId').value = data.id;
+                        document.getElementById('plateNumber').value = data.plateNumber;
+                        document.getElementById('unitBrand').value = data.unitBrand || '';
+                        document.getElementById('vehicleType').value = data.vehicleType;
+                        document.getElementById('customerOwner').value = data.customerId;
+                        document.getElementById('fmsStatus').value = data.fmsStatus;
+                        document.getElementById('installDate').value = data.installDate || '';
+                    } else { document.getElementById('fleetId').value = ''; }
+                } else if (modalId === 'customerStatusModal') {
+                    if (data) {
+                        document.getElementById('customerStatusId').value = data.id;
+                        document.getElementById('statusName').value = data.name;
+                        // Update Color Picker value
+                        document.getElementById('statusColor').value = data.color;
+                    } else { document.getElementById('customerStatusId').value = ''; } // FIX: Ensure ID is cleared on create
+                } else if (modalId === 'fleetStatusModal') {
+                    if (data) {
+                        document.getElementById('fleetStatusId').value = data.id;
+                        document.getElementById('statusName').value = data.name;
+                        // Update Color Picker value
+                        document.getElementById('statusColor').value = data.color;
+                    } else { document.getElementById('fleetStatusId').value = ''; } // FIX: Ensure ID is cleared on create
+                } else if (modalId === 'taskModal' && data) {
+                    document.getElementById('taskCustomerId').value = data.id;
+                    document.getElementById('taskCustomerName').textContent = data.companyName;
+                    renderTasks(data.id);
+                }
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // --- Data Submission Handlers (CRUD Create/Update) ---
+
+        document.getElementById('customerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const existingId = document.getElementById('customerId').value;
+                const customerData = {
+                    id: existingId || null,
+                    companyName: document.getElementById('companyName').value,
+                    contactPerson: document.getElementById('contactPerson').value,
+                    location: document.getElementById('location').value,
+                    acquisitionType: document.getElementById('acquisitionType').value,
+                    estimatedRevenue: document.getElementById('estimatedRevenue').value,
+                    numberOfDevice: document.getElementById('numberOfDevice').value,
+                    serviceType: document.getElementById('serviceType').value,
+                    classificationType: document.getElementById('classificationType').value,
+                    terrainType: document.getElementById('terrainType').value,
+                    progressStatus: document.getElementById('progressStatus').value,
+                    startDate: document.getElementById('startDate').value,
+                    expectedEndDate: document.getElementById('expectedEndDate').value,
+                    notes: document.getElementById('notes').value,
+                };
+
+                const isUpdate = !!existingId;
+                const savedCustomer = await saveCustomerToDB(customerData);
+
+                // Update local array
+                if (isUpdate) {
+                    const idx = customers.findIndex(c => c.id === savedCustomer.id);
+                    if (idx > -1) customers[idx] = savedCustomer;
+                } else {
+                    customers.unshift(savedCustomer);
+                }
+
+                // Log activity
+                await addActivity(
+                    isUpdate ? 'CUSTOMER_UPDATE' : 'CUSTOMER_ADD',
+                    isUpdate ? `Customer ${savedCustomer.companyName} diperbarui.` : `Customer baru ${savedCustomer.companyName} ditambahkan.`
+                );
+
+                toggleModal('customerModal');
+                renderAll();
+            } catch (error) {
+                console.error('Error saving customer:', error);
+                alert('Failed to save customer. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('fleetForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const existingId = document.getElementById('fleetId').value;
+                const fleetData = {
+                    id: existingId || null,
+                    plateNumber: document.getElementById('plateNumber').value.toUpperCase(),
+                    unitBrand: document.getElementById('unitBrand')?.value || '',
+                    vehicleType: document.getElementById('vehicleType').value,
+                    customerId: document.getElementById('customerOwner').value,
+                    fmsStatus: document.getElementById('fmsStatus').value,
+                    installDate: document.getElementById('installDate').value,
+                };
+
+                const isUpdate = !!existingId;
+                const savedFleet = await saveFleetToDB(fleetData);
+                const customerName = customers.find(c => c.id === savedFleet.customerId)?.companyName || 'Unknown Customer';
+
+                // Update local array
+                if (isUpdate) {
+                    const idx = fleet.findIndex(f => f.id === savedFleet.id);
+                    if (idx > -1) fleet[idx] = savedFleet;
+                } else {
+                    fleet.unshift(savedFleet);
+                }
+
+                // Log activity
+                await addActivity(
+                    isUpdate ? 'FLEET_UPDATE' : 'FLEET_ADD',
+                    isUpdate
+                        ? `Unit ${savedFleet.plateNumber} (${savedFleet.unitBrand || 'N/A'}) pada ${customerName} diperbarui.`
+                        : `Unit baru ${savedFleet.plateNumber} (${savedFleet.unitBrand || 'N/A'}) ditambahkan ke ${customerName}.`
+                );
+
+                toggleModal('fleetModal');
+                renderAll();
+            } catch (error) {
+                console.error('Error saving fleet:', error);
+                alert('Failed to save fleet. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('customerStatusForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const existingId = document.getElementById('customerStatusId').value;
+                const statusData = {
+                    id: existingId || null,
+                    name: document.getElementById('statusName').value,
+                    color: document.getElementById('statusColor').value,
+                };
+
+                const isUpdate = !!existingId;
+                const savedStatus = await saveCustomerStatusToDB(statusData);
+
+                // Update local array
+                if (isUpdate) {
+                    const idx = customerStatuses.findIndex(s => s.id === savedStatus.id);
+                    if (idx > -1) customerStatuses[idx] = savedStatus;
+                } else {
+                    customerStatuses.push(savedStatus);
+                }
+
+                toggleModal('customerStatusModal');
+                renderAll();
+            } catch (error) {
+                console.error('Error saving customer status:', error);
+                alert('Failed to save customer status. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('fleetStatusForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const existingId = document.getElementById('fleetStatusId').value;
+                const statusData = {
+                    id: existingId || null,
+                    name: document.getElementById('statusName').value,
+                    color: document.getElementById('statusColor').value,
+                };
+
+                const isUpdate = !!existingId;
+                const savedStatus = await saveFleetStatusToDB(statusData);
+
+                // Update local array
+                if (isUpdate) {
+                    const idx = fleetStatuses.findIndex(s => s.id === savedStatus.id);
+                    if (idx > -1) fleetStatuses[idx] = savedStatus;
+                } else {
+                    fleetStatuses.push(savedStatus);
+                }
+
+                toggleModal('fleetStatusModal');
+                renderAll();
+            } catch (error) {
+                console.error('Error saving fleet status:', error);
+                alert('Failed to save fleet status. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('taskForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const customerId = document.getElementById('taskCustomerId').value;
+                const taskData = {
+                    customerId: customerId,
+                    name: document.getElementById('taskNameInput').value,
+                    isCompleted: false,
+                    dueDate: document.getElementById('taskDueDateInput').value,
+                };
+
+                const savedTask = await saveTaskToDB(taskData);
+                tasks.unshift(savedTask);
+
+                // Clear inputs
+                document.getElementById('taskNameInput').value = '';
+                document.getElementById('taskDueDateInput').value = '';
+
+                renderTasks(customerId);
+                renderAll();
+            } catch (error) {
+                console.error('Error saving task:', error);
+                alert('Failed to save task. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
+
+        // --- Helper Select Populators ---
+
+        function populateProgressStatusSelect() {
+            const select = document.getElementById('progressStatus');
+            if (!select) return;
+            select.innerHTML = '';
+            customerStatuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status.name;
+                option.textContent = status.name;
+                select.appendChild(option);
+            });
+        }
+
+        function populateFmsStatusSelect() {
+            const select = document.getElementById('fmsStatus');
+            if (!select) return;
+            select.innerHTML = '';
+            fleetStatuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status.name;
+                option.textContent = status.name;
+                select.appendChild(option);
+            });
+        }
+
+        function populateCustomerOwnerSelect() {
+            const select = document.getElementById('customerOwner');
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Select Customer --</option>'; // Default/empty option
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = customer.companyName;
+                select.appendChild(option);
+            });
+        }
+        
+        // --- Kanban Board Logic (Drag & Drop) ---
+        function initializeKanban() {
+            customerStatuses.forEach(status => {
+                const column = document.getElementById(`column-${status.name}`);
+                if (column) {
+                    new Sortable(column, {
+                        group: 'kanban',
+                        animation: 150,
+                        onEnd: function (evt) {
+                            const itemId = evt.item.getAttribute('data-id');
+                            const newStatus = evt.to.getAttribute('data-status');
+                            updateCustomerStatusFromKanban(itemId, newStatus);
+                        },
+                        // Only allow drag on the card itself, not the status count
+                        filter: '.status-count',
+                        preventOnFilter: false,
+                        handle: '.kanban-card'
+                    });
+                }
+            });
+        }
+
+        function renderKanbanBoard() {
+            const container = document.getElementById('kanbanContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const columns = {};
+
+            customerStatuses.forEach(status => {
+                const statusName = status.name;
+                const statusColor = status.color;
+                
+                const columnDiv = document.createElement('div');
+                columnDiv.id = `column-${statusName}`;
+                // TAMBAHAN: Kita batasi tinggi kolom dan sembunyikan overflow luar
+                columnDiv.className = 'kanban-column flex flex-col h-[700px] bg-gray-800/50 rounded-lg overflow-hidden'; 
+                columnDiv.setAttribute('data-status', statusName);
+                
+                // Header
+                columnDiv.innerHTML = `
+                    <div class="flex justify-between items-center bg-gray-800 p-4 z-10 border-b-4" style="border-color: ${statusColor};">
+                        <h3 class="text-xl font-semibold text-gray-200">${statusName}</h3>
+                        <span id="count-${statusName}" class="status-count text-gray-400 font-bold p-1 rounded-full text-sm bg-gray-700 px-3">0</span>
+                    </div>
+                    <div class="p-2 bg-gray-800/30">
+                        <button onclick="toggleModal('customerModal')" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-1 px-3 rounded-lg shadow-md text-sm">
+                            + Add Customer
+                        </button>
+                    </div>
+                    <div id="cards-container-${statusName}" class="kanban-cards-area flex-grow overflow-y-auto p-2 space-y-3 custom-scrollbar">
+                    </div>
+                `;
+                container.appendChild(columnDiv);
+                // Simpan referensi ke container kartu, bukan ke columnDiv-nya
+                columns[statusName] = document.getElementById(`cards-container-${statusName}`);
+            });
+
+            // Populate Cards
+            customers.forEach(customer => {
+                const statusName = customer.progressStatus;
+                const statusObj = customerStatuses.find(s => s.name === statusName);
+                
+                if (statusObj && columns[statusName]) {
+                    const card = document.createElement('div');
+                    let pendingTasks = tasks.filter(t => t.customerId === customer.id && !t.isCompleted).length;
+                    
+                    card.className = `kanban-card p-4 bg-gray-700 shadow-lg hover:bg-gray-600 transition duration-150 rounded-lg border-l-4`;
+                    card.style.borderLeftColor = statusObj.color; 
+                    card.setAttribute('data-id', customer.id);
+                    
+                    card.innerHTML = `
+                        <p class="text-lg font-semibold text-gray-50 mb-1">${customer.companyName}</p>
+                        <p class="text-sm text-gray-400 mb-2">${customer.serviceType} | ${customer.terrainType || 'N/A'}</p>
+                        <div class="flex justify-between items-center text-xs text-gray-400">
+                            ${customer.expectedEndDate ? `<i class="far fa-calendar-alt ${new Date(customer.expectedEndDate) < new Date() ? 'text-red-400' : 'text-yellow-400'}"></i> ${customer.expectedEndDate}` : '' }
+                            <span class="flex items-center space-x-1 font-bold ${pendingTasks > 0 ? 'text-orange-400' : 'text-gray-400'}">
+                                <i class="fas fa-tasks"></i> ${pendingTasks} Tasks
+                            </span>
+                        </div>
+                        <div class="flex justify-end mt-3 space-x-2">
+                            <button onclick="editCustomer('${customer.id}')" class="text-blue-400 hover:text-blue-300 text-sm"><i class="fas fa-edit"></i></button>
+                            <button onclick="openTaskModal('${customer.id}')" class="text-orange-400 hover:text-orange-300 text-sm"><i class="fas fa-clipboard-list"></i></button>
+                        </div>
+                    `;
+                    columns[statusName].appendChild(card);
+                }
+            });
+
+            // Update Counts
+            customerStatuses.forEach(status => {
+                const count = customers.filter(c => c.progressStatus === status.name).length;
+                const countElement = document.getElementById(`count-${status.name}`);
+                if (countElement) countElement.textContent = count;
+            });
+
+            // Initialize Sortable after rendering
+            initializeKanban();
+        }
+
+        async function updateCustomerStatusFromKanban(id, newStatus) {
+            showLoading(true);
+            try {
+                await supabaseClient
+                    .from('customers')
+                    .update({ progress_status: newStatus })
+                    .eq('id', id);
+
+                const index = customers.findIndex(c => c.id === id);
+                if (index > -1) {
+                    customers[index].progressStatus = newStatus;
+                }
+                renderAll();
+            } catch (error) {
+                console.error('Error updating customer status:', error);
+                alert('Failed to update status. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- Task Management Logic ---
+        function openTaskModal(customerId) {
+            const customer = customers.find(c => c.id === customerId);
+            if (customer) {
+                toggleModal('taskModal', customer);
+            }
+        }
+
+        function renderTasks(customerId) {
+            const container = document.getElementById('taskListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const customerTasks = tasks
+                .filter(t => t.customerId === customerId)
+                .sort((a, b) => (new Date(a.dueDate || '3000-01-01') - new Date(b.dueDate || '3000-01-01'))); // Sort by due date
+
+            customerTasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = `flex justify-between items-center p-3 rounded-lg shadow-md ${task.isCompleted ? 'bg-gray-600 line-through' : 'bg-gray-700 hover:bg-gray-600'}`;
+                
+                const dueDateDisplay = task.dueDate ? 
+                    `<span class="text-xs ${new Date(task.dueDate) < new Date() && !task.isCompleted ? 'text-red-400' : 'text-gray-400'} ml-3"><i class="far fa-calendar-alt"></i> ${task.dueDate}</span>` : 
+                    '<span class="text-xs text-gray-500 ml-3">No Due Date</span>';
+
+                taskDiv.innerHTML = `
+                    <div class="flex items-center flex-grow">
+                        <input type="checkbox" id="task-${task.id}" ${task.isCompleted ? 'checked' : ''} onchange="toggleTaskCompletion('${task.id}', this.checked)"
+                            class="form-checkbox h-5 w-5 text-orange-500 bg-gray-800 border-gray-600 rounded cursor-pointer">
+                        <label for="task-${task.id}" class="ml-3 text-sm font-medium ${task.isCompleted ? 'text-gray-400' : 'text-gray-100'} cursor-pointer">${task.name}</label>
+                        ${dueDateDisplay}
+                    </div>
+                    <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-400 transition duration-150">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                container.appendChild(taskDiv);
+            });
+        }
+
+        async function toggleTaskCompletion(taskId, isCompleted) {
+            showLoading(true);
+            try {
+                const index = tasks.findIndex(t => t.id === taskId);
+                if (index > -1) {
+                    tasks[index].isCompleted = isCompleted;
+                    await supabaseClient
+                        .from('tasks')
+                        .update({ is_completed: isCompleted })
+                        .eq('id', taskId);
+                    const customerId = tasks[index].customerId;
+                    renderTasks(customerId);
+                    renderAll();
+                }
+            } catch (error) {
+                console.error('Error toggling task completion:', error);
+                alert('Failed to update task. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function deleteTask(taskId) {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+
+            const taskToDelete = tasks.find(t => t.id === taskId);
+            showLoading(true);
+            deleteTaskFromDB(taskId)
+                .then(() => {
+                    tasks = tasks.filter(t => t.id !== taskId);
+                    if (taskToDelete) renderTasks(taskToDelete.customerId);
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error('Error deleting task:', error);
+                    alert('Failed to delete task. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+
+        // --- Section Content Injection (UI Improvement) ---
+        // Creates the structural HTML for the Customers page
+        function renderCustomerSection() {
+            const section = document.getElementById('customers');
+            section.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Customer List 🧑‍💼</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <button onclick="toggleModal('customerModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        + Add New Customer (Create)
+                    </button>
+                    <input type="text" id="customerSearch" placeholder="Search customers..." oninput="renderCustomersTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700" id="customersTable">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 0)">Company Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 1)">Primary Contact</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 2)">Location</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 3)">Acquisition Type</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 4)">Number of Device</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 2)">Service Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 3)">Classification</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 4)">Terrain Type</th>
+
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-pointer" onclick="sortTable('customersTable', 5)">Progress Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 6)">Start Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 7)">End Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Tasks Pending</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            `;
+            // Call render table content immediately after creating the structure
+            renderCustomersTable(document.getElementById('customerSearch')?.value || ''); 
+        }
+
+        // Creates the structural HTML for the Fleet page
+        function renderFleetSection() {
+            const section = document.getElementById('fleet');
+            section.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Fleet List (FMS) 🚚</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <button onclick="toggleModal('fleetModal')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        + Add New Fleet (Create)
+                    </button>
+                    <input type="text" id="fleetSearch" placeholder="Search fleet..." oninput="renderFleetTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700" id="fleetTable">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 0)">Plate Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 1)">Unit Brand</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 2)">Vehicle Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 3)">Customer</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 4)">FMS Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('fleetTable', 5)">Installation Date</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fleetTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            `;
+            // Call render table content immediately after creating the structure
+            renderFleetTable(document.getElementById('fleetSearch')?.value || '');
+        }
+
+        function renderCustomersTable(searchTerm = '') {
+            const tableBody = document.getElementById('customersTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            const filteredCustomers = customers.filter(c => 
+                c.companyName.toLowerCase().includes(searchTerm) || 
+                c.contactPerson.toLowerCase().includes(searchTerm) || 
+                c.serviceType.toLowerCase().includes(searchTerm) ||
+                c.classificationType?.toLowerCase().includes(searchTerm) || 
+                c.terrainType?.toLowerCase().includes(searchTerm) || // Check new field
+                c.progressStatus.toLowerCase().includes(searchTerm)
+            );
+
+            filteredCustomers.forEach(customer => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700';
+
+                const statusObj = customerStatuses.find(s => s.name === customer.progressStatus);
+                const statusData = statusObj ? getStatusColorData(statusObj.color) : { classes: 'bg-gray-700 text-gray-400', styles: '' };
+                const pendingTasks = tasks.filter(t => t.customerId === customer.id && !t.isCompleted).length;
+
+                const endDateClass = customer.expectedEndDate && new Date(customer.expectedEndDate) < new Date() ? 'text-red-400' : 'text-gray-400';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${customer.companyName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.contactPerson}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.location || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.acquisitionType || 'N/A'}</td>                    
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.numberOfDevice || '0'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.serviceType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.classificationType || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.terrainType || 'N/A'}</td>
+
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="${statusData.classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${statusData.styles}">${customer.progressStatus}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.startDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${endDateClass}">${customer.expectedEndDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${pendingTasks > 0 ? 'text-orange-400' : 'text-gray-400'}">
+                        ${pendingTasks}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="openTaskModal('${customer.id}')" class="text-orange-400 hover:text-orange-300"><i class="fas fa-clipboard-list"></i> Open Tasks</button>
+                        <button onclick="editCustomer('${customer.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i> Edit</button>
+                        <button onclick="deleteCustomer('${customer.id}')" class="text-red-500 hover:text-red-400"><i class="fas fa-trash-alt"></i> Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function renderFleetTable(searchTerm = '') {
+            const tableBody = document.getElementById('fleetTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            const filteredFleet = fleet.filter(f => 
+                f.plateNumber.toLowerCase().includes(searchTerm) || 
+                (f.unitBrand && f.unitBrand.toLowerCase().includes(searchTerm)) ||
+                f.vehicleType.toLowerCase().includes(searchTerm) || 
+                f.fmsStatus.toLowerCase().includes(searchTerm) || 
+                (customers.find(c => c.id === f.customerId)?.companyName.toLowerCase().includes(searchTerm))
+            );
+
+            filteredFleet.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700';
+
+                const customer = customers.find(c => c.id === item.customerId);
+                const customerName = customer ? customer.companyName : 'Unknown Customer';
+                
+                const statusObj = fleetStatuses.find(s => s.name === item.fmsStatus);
+                const statusData = statusObj ? getStatusColorData(statusObj.color) : { classes: 'bg-gray-700 text-gray-400', styles: '' };
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${item.plateNumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.unitBrand || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.vehicleType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-400">${customerName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="${statusData.classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${statusData.styles}">${item.fmsStatus}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${item.installDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="editFleet('${item.id}')" class="text-green-400 hover:text-green-300"><i class="fas fa-edit"></i> Edit</button>
+                        <button onclick="deleteFleet('${item.id}')" class="text-red-500 hover:text-red-400"><i class="fas fa-trash-alt"></i> Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // --- CRUD Delete & Edit Handlers ---
+        function editCustomer(id) {
+            const customer = customers.find(c => c.id === id);
+            if (customer) {
+                toggleModal('customerModal', customer);
+            }
+        }
+
+        function deleteCustomer(id) {
+            if (!confirm('Are you sure you want to delete this customer? All associated fleet data and tasks will also be deleted.')) return;
+
+            showLoading(true);
+            deleteCustomerFromDB(id)
+                .then(() => {
+                    customers = customers.filter(c => c.id !== id);
+                    fleet = fleet.filter(f => f.customerId !== id);
+                    tasks = tasks.filter(t => t.customerId !== id);
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error('Error deleting customer:', error);
+                    alert('Failed to delete customer. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+
+        function editFleet(id) {
+            const item = fleet.find(f => f.id === id);
+            if (item) {
+                toggleModal('fleetModal', item);
+            }
+        }
+
+        function deleteFleet(id) {
+            if (!confirm('Are you sure you want to delete this fleet data?')) return;
+
+            showLoading(true);
+            deleteFleetFromDB(id)
+                .then(() => {
+                    fleet = fleet.filter(f => f.id !== id);
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error('Error deleting fleet:', error);
+                    alert('Failed to delete fleet. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+
+        function editCustomerStatus(id) {
+            const status = customerStatuses.find(s => s.id === id);
+            if (status) {
+                toggleModal('customerStatusModal', status);
+            }
+        }
+
+        function deleteCustomerStatus(id) {
+            if (!confirm('Are you sure you want to delete this status? This may affect existing data.')) return;
+
+            showLoading(true);
+            deleteCustomerStatusFromDB(id)
+                .then(() => {
+                    customerStatuses = customerStatuses.filter(s => s.id !== id);
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error('Error deleting customer status:', error);
+                    alert('Failed to delete customer status. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+
+        function editFleetStatus(id) {
+            const status = fleetStatuses.find(s => s.id === id);
+            if (status) {
+                toggleModal('fleetStatusModal', status);
+            }
+        }
+
+        function deleteFleetStatus(id) {
+            if (!confirm('Are you sure you want to delete this status? This may affect existing data.')) return;
+
+            showLoading(true);
+            deleteFleetStatusFromDB(id)
+                .then(() => {
+                    fleetStatuses = fleetStatuses.filter(s => s.id !== id);
+                    renderAll();
+                })
+                .catch((error) => {
+                    console.error('Error deleting fleet status:', error);
+                    alert('Failed to delete fleet status. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+
+        // --- Dashboard Logic (Charts) ---
+
+        function renderProgressChart() {
+            const chartDiv = document.getElementById('progressChart');
+            if (!chartDiv) return;
+            chartDiv.innerHTML = '';
+            
+            const total = customers.length;
+            if (total === 0) {
+                chartDiv.innerHTML = '<p class="text-gray-400">No customer data available to show progress.</p>';
+                return;
+            }
+
+            customerStatuses.forEach(status => {
+                const count = customers.filter(c => c.progressStatus === status.name).length;
+                if (count === 0) return;
+                
+                const percentage = ((count / total) * 100).toFixed(1);
+                const { textStyle } = getStatusColorData(status.color);
+
+                const bar = `
+                    <div class="mb-2">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-base font-medium text-gray-300">${status.name}</span>
+                            <span class="text-sm font-semibold" style="${textStyle}">${percentage}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2.5">
+                            <div class="h-2.5 rounded-full" style="width: ${percentage}%; background-color: ${status.color};"></div>
+                        </div>
+                    </div>
+                `;
+                chartDiv.innerHTML += bar;
+            });
+        }
+
+        function renderFmsStatusChart() {
+            const chartDiv = document.getElementById('fmsStatusChart');
+            if (!chartDiv) return;
+            chartDiv.innerHTML = '';
+            
+            const total = fleet.length;
+            if (total === 0) {
+                chartDiv.innerHTML = '<p class="text-gray-400">No fleet data available to show FMS status.</p>';
+                return;
+            }
+
+            fleetStatuses.forEach(status => {
+                const count = fleet.filter(f => f.fmsStatus === status.name).length;
+                if (count === 0) return;
+                
+                const percentage = ((count / total) * 100).toFixed(1);
+                const { textStyle } = getStatusColorData(status.color);
+
+                const bar = `
+                    <div class="mb-2">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-base font-medium text-gray-300">${status.name}</span>
+                            <span class="text-sm font-semibold" style="${textStyle}">${percentage}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2.5">
+                            <div class="h-2.5 rounded-full" style="width: ${percentage}%; background-color: ${status.color};"></div>
+                        </div>
+                    </div>
+                `;
+                chartDiv.innerHTML += bar;
+            });
+        }
+        
+        function renderTaskChart() {
+            const chartDiv = document.getElementById('taskChart');
+            if (!chartDiv) return;
+            chartDiv.innerHTML = '';
+
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.isCompleted).length;
+            
+            if (totalTasks === 0) {
+                chartDiv.innerHTML = '<p class="text-gray-400">No tasks created yet.</p>';
+                return;
+            }
+
+            const completionPercentage = ((completedTasks / totalTasks) * 100).toFixed(1);
+            const pendingPercentage = (100 - completionPercentage).toFixed(1);
+
+            chartDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-center">
+                        <p class="text-4xl font-extrabold text-green-400">${completedTasks}</p>
+                        <p class="text-sm text-gray-400">Completed</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-extrabold text-orange-400">${totalTasks - completedTasks}</p>
+                        <p class="text-sm text-gray-400">Pending</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-extrabold text-gray-50">${totalTasks}</p>
+                        <p class="text-sm text-gray-400">Total Tasks</p>
+                    </div>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-200 mb-2">Completion Rate: ${completionPercentage}%</h4>
+                <div class="w-full bg-gray-700 rounded-full h-4 flex overflow-hidden">
+                    <div class="bg-green-600 h-4" style="width: ${completionPercentage}%" title="${completionPercentage}% Completed"></div>
+                    <div class="bg-orange-600 h-4" style="width: ${pendingPercentage}%" title="${pendingPercentage}% Pending"></div>
+                </div>
+            `;
+        }
+
+        function renderServiceTypeChart() {
+            const chartDiv = document.getElementById('serviceTypeChart');
+            if (!chartDiv) return;
+            chartDiv.innerHTML = '';
+
+            const total = customers.length;
+            if (total === 0) {
+                chartDiv.innerHTML = '<p class="text-gray-400">No customer data available to show service type distribution.</p>';
+                return;
+            }
+
+            // Group customers by service type
+            const serviceTypeCounts = customers.reduce((acc, customer) => {
+                acc[customer.serviceType] = (acc[customer.serviceType] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Define colors for each known service type (UPDATED FOR NEW OPTIONS)
+            const serviceTypeColors = {
+                'Lite Version': '#f59e0b', // Amber
+                'Standard-Full Safety Base': '#3b82f6', // Blue
+                'Standard-Full Safety Plus': '#10b981', // Green
+                'Standard-Full Safety Pro+': '#8b5cf6', // Purple
+                // Fallback for old/unknown data
+                'Basic FMS': '#f59e0b', 
+                'Advanced Telematics': '#3b82f6',
+                'Custom Integration': '#10b981',
+            };
+
+            // Calculate max count for scaling the bars
+            const maxCount = Math.max(...Object.values(serviceTypeCounts));
+
+            Object.keys(serviceTypeCounts).forEach(type => {
+                const count = serviceTypeCounts[type];
+                const percentage = ((count / total) * 100).toFixed(1);
+                const barWidth = ((count / maxCount) * 100).toFixed(1);
+                const color = serviceTypeColors[type] || '#6b7280'; // Default gray
+
+                const bar = `
+                    <div class="mb-2">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-base font-medium text-gray-300">${type}</span>
+                            <span class="text-sm font-semibold" style="color: ${color};">${percentage}% (${count})</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-4">
+                            <div class="h-4 rounded-full" style="width: ${barWidth}%; background-color: ${color};"></div>
+                        </div>
+                    </div>
+                `;
+                chartDiv.innerHTML += bar;
+            });
+        }
+
+        function formatRupiah(number) {
+            const num = parseInt(number);
+            // Jika data kosong atau bukan angka, kembalikan 'IDR 0'
+            if (isNaN(num) || num === 0) return 'IDR 0';
+            // Gunakan toLocaleString untuk format Rupiah
+            return 'IDR ' + num.toLocaleString('id-ID');
+        }
+
+
+        function renderDashboard() {
+            const dashboardSection = document.getElementById('dashboard');
+            const runningProgress = customers.filter(c => c.progressStatus !== 'Completed').length;
+
+            // --- START: ADDED NEW STATS CALCULATION ---
+            let totalEstimatedRevenue = 0;
+            let bundlingCount = 0;
+            let directSellingCount = 0;
+
+            customers.forEach(customer => {
+                // 1. Hitung Total Estimated Revenue
+                // Pastikan estimatedRevenue adalah angka sebelum dihitung
+                const revenue = parseInt(customer.estimatedRevenue) || 0;
+                totalEstimatedRevenue += revenue;
+
+                // 2. Hitung Bundling vs Direct Selling
+                if (customer.acquisitionType === 'bundling with IEC') {
+                    bundlingCount++;
+                } else if (customer.acquisitionType === 'direct selling') {
+                    directSellingCount++;
+                }
+            });
+            // --- END: ADDED NEW STATS CALCULATION ---
+
+            // Hapus variabel 'summary' jika tidak digunakan (untuk menjaga kebersihan kode)
+            
+            dashboardSection.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Dashboard Overview 📊</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                    
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-blue-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total Customers</p>
+                        <p id="totalCustomers" class="text-4xl font-extrabold text-gray-50 mt-2">${customers.length}</p>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-green-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Active Fleet</p>
+                        <p id="totalFleet" class="text-4xl font-extrabold text-gray-50 mt-2">${fleet.filter(f => f.fmsStatus === 'Active').length}</p>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-yellow-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Running Implementations</p>
+                        <p id="progressRunning" class="text-4xl font-extrabold text-gray-50 mt-2">${runningProgress}</p>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-red-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total Est. Revenue</p>
+                        <p class="text-3xl font-extrabold text-gray-50 mt-2">${formatRupiah(totalEstimatedRevenue)}</p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-purple-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Acquisition (B/DS)</p>
+                        <p class="text-4xl font-extrabold text-gray-50 mt-2">${bundlingCount} / ${directSellingCount}</p>
+                        <p class="text-xs text-gray-500 mt-1">Total: ${bundlingCount + directSellingCount} Customer(s)</p>
+                    </div>
+                    </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Customer Progress Status</h3>
+                        <div id="progressChart" class="space-y-3"></div>
+                    </div>
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Fleet FMS Status</h3>
+                        <div id="fmsStatusChart" class="space-y-3"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Task Completion Rate</h3>
+                        <div id="taskChart" class="space-y-3"></div>
+                    </div>
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Service Type Distribution</h3>
+                        <div id="serviceTypeChart" class="space-y-3"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Upcoming Due Dates</h3>
+                        <div id="upcomingEvents" class="space-y-2"></div>
+                    </div>
+                    <div class="md:col-span-2 bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Recent Activity Feed</h3>
+                        <ul id="activityFeed" class="space-y-3 text-sm"></ul>
+                    </div>
+                </div>
+            `;
+
+            // Pastikan semua fungsi render lainnya dipanggil di sini
+            renderProgressChart();
+            renderFmsStatusChart();
+            renderUpcomingEvents();
+            renderActivityFeed();
+            renderTaskChart();
+            renderServiceTypeChart();
+        }
+
+
+        // --- Render Status Tables in Settings ---
+        function renderCustomerStatusesTable() {
+            const tableBody = document.getElementById('customerStatusesTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            customerStatuses.forEach(status => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700';
+                const { classes, styles } = getStatusColorData(status.color);
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${status.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="${classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${styles} background-color: ${status.color}; border: 1px solid ${status.color};">
+                            ${status.color}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="editCustomerStatus('${status.id}')" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCustomerStatus('${status.id}')" class="text-red-500 hover:text-red-400"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function renderFleetStatusesTable() {
+            const tableBody = document.getElementById('fleetStatusesTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            fleetStatuses.forEach(status => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700';
+                const { classes, styles } = getStatusColorData(status.color);
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${status.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="${classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${styles} background-color: ${status.color}; border: 1px solid ${status.color};">
+                            ${status.color}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="editFleetStatus('${status.id}')" class="text-green-400 hover:text-green-300"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteFleetStatus('${status.id}')" class="text-red-500 hover:text-red-400"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // --- Calendar/Timeline Logic (Updated to use status color) ---
+        function getCalendarEvents() {
+            const events = [];
+            customers.forEach(customer => {
+                const status = customerStatuses.find(s => s.name === customer.progressStatus);
+                const color = status ? status.color : '#6b7280'; // Use color value directly
+                if (customer.startDate) {
+                    events.push({
+                        title: `${customer.companyName} - Start (${customer.progressStatus})`,
+                        start: customer.startDate,
+                        color: color
+                    });
+                }
+                if (customer.expectedEndDate) {
+                    events.push({
+                        title: `${customer.companyName} - Due Date (${customer.progressStatus})`,
+                        start: customer.expectedEndDate,
+                        color: color
+                    });
+                }
+            });
+
+            fleet.forEach(item => {
+                const status = fleetStatuses.find(s => s.name === item.fmsStatus);
+                const color = status ? status.color : '#6b7280'; // Use color value directly
+                if (item.installDate) {
+                    const customer = customers.find(c => c.id === item.customerId);
+                    const customerName = customer ? customer.companyName : 'N/A';
+                    events.push({
+                        title: `${item.plateNumber} - Installation - ${customerName}`,
+                        start: item.installDate,
+                        color: color
+                    });
+                }
+            });
+            
+            tasks.forEach(task => {
+                if (task.dueDate && !task.isCompleted) {
+                    const customer = customers.find(c => c.id === task.customerId);
+                    const customerName = customer ? customer.companyName : 'N/A';
+                    events.push({
+                        title: `TASK: ${task.name} - ${customerName}`,
+                        start: task.dueDate,
+                        color: '#f97316' // Orange-500 for tasks
+                    });
+                }
+            });
+            
+            return events;
+        }
+
+        function renderTimeline() {
+            const calendarEl = document.getElementById('calendar');
+            if (calendarEl && !calendar) {
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,listWeek'
+                    },
+                    events: getCalendarEvents(),
+                    eventDidMount: function(info) {
+                        info.el.style.borderColor = info.event.backgroundColor || info.event.color;
+                    },
+                    height: 'auto',
+                    themeSystem: 'standard' // Ensure dark mode compatibility is handled by the overall CSS
+                });
+                calendar.render();
+            } else if (calendar) {
+                calendar.setOption('events', getCalendarEvents());
+                calendar.refetchEvents();
+            }
+        }
+        
+        // --- Dashboard Upcoming Events and Activity Feed ---
+        function renderUpcomingEvents() {
+            const container = document.getElementById('upcomingEvents');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const events = getCalendarEvents()
+                .filter(e => new Date(e.start) >= new Date()) // only future events
+                .sort((a, b) => new Date(a.start) - new Date(b.start))
+                .slice(0, 5); // Show top 5
+
+            if (events.length === 0) {
+                container.innerHTML = '<p class="text-gray-400">No upcoming events or due dates.</p>';
+                return;
+            }
+
+            events.forEach(event => {
+                const date = new Date(event.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const item = `
+                    <div class="flex items-start space-x-3 p-2 bg-gray-700 rounded-lg border-l-4" style="border-left-color: ${event.color};">
+                        <i class="far fa-calendar-alt text-lg mt-1" style="color: ${event.color};"></i>
+                        <div>
+                            <p class="font-semibold text-sm text-gray-100">${event.title}</p>
+                            <p class="text-xs text-gray-400">${date}</p>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += item;
+            });
+        }
+        
+        /**
+         * Generates a real activity feed based on recent data additions and upcoming events.
+         */
+        function renderActivityFeed() {
+            const feedList = document.getElementById('activityFeed');
+            if (!feedList) return;
+            feedList.innerHTML = '';
+
+            // Salin array dan balikkan urutannya agar yang terbaru muncul di atas.
+            // Karena addActivity menggunakan push(), elemen terbaru ada di akhir array.
+            const displayFeed = [...activityFeed].reverse(); 
+            
+            if (displayFeed.length === 0) {
+                feedList.innerHTML = `<li class="text-center py-4 text-gray-500">No recent activity to display.</li>`;
+                return;
+            }
+
+            // Fungsi helper sederhana untuk format waktu (hanya jam/menit)
+            // Karena kita tidak perlu 'time ago' lagi, kita pakai format yang sederhana
+            function formatTime(timestamp) {
+                return new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            displayFeed.forEach(activity => {
+                const item = document.createElement('li');
+                // Menggunakan kelas styling yang Anda berikan sebelumnya
+                item.className = 'flex items-center space-x-3 p-2 bg-gray-700 rounded-lg border border-gray-600';
+
+                // Logika visualisasi icon berdasarkan tipe aktivitas (diambil dari instruksi sebelumnya)
+                let icon = 'fas fa-info-circle';
+                let color = 'text-blue-400';
+                if (activity.type === 'CUSTOMER_ADD') {
+                    icon = 'fas fa-plus-circle';
+                    color = 'text-green-400';
+                } else if (activity.type === 'CUSTOMER_UPDATE') {
+                    icon = 'fas fa-user-tag';
+                    color = 'text-yellow-400';
+                } else if (activity.type === 'FLEET_ADD') {
+                    icon = 'fas fa-truck-moving';
+                    color = 'text-green-400';
+                } else if (activity.type === 'FLEET_UPDATE') {
+                    icon = 'fas fa-tools';
+                    color = 'text-yellow-400';
+                }
+
+                const timeDisplay = formatTime(activity.timestamp);
+
+                item.innerHTML = `
+                    <i class="${icon} ${color}"></i>
+                    <span class="text-xs text-gray-500 whitespace-nowrap">${timeDisplay}</span>
+                    <span class="text-gray-300 flex-grow">${activity.description}</span>
+                `;
+                feedList.appendChild(item);
+            });
+        }
+
+        // --- NEW DATA MANAGEMENT FUNCTIONS ---
+
+        /**
+         * Bundles all application data and exports it as a JSON file download.
+         */
+        function exportDataToJson() {
+            const allData = {
+                customers: customers,
+                fleet: fleet,
+                customerStatuses: customerStatuses,
+                fleetStatuses: fleetStatuses,
+                tasks: tasks
+            };
+            const jsonString = JSON.stringify(allData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'motorsights_crm_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            alert('Data berhasil diekspor dan diunduh sebagai motorsights_crm_backup.json!');
+        }
+
+        /**
+         * Handles the file input change event to import data from a JSON file.
+         */
+        async function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/json') {
+                alert('File yang dipilih harus berformat JSON (.json).');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    if (!confirm('Yakin ingin menimpa data CRM Anda saat ini dengan data dari file ini? Operasi ini TIDAK dapat dibatalkan.')) {
+                        return;
+                    }
+
+                    // Check if the imported data structure is valid
+                    if (!importedData.customers || !importedData.fleet || !importedData.customerStatuses || !importedData.fleetStatuses || !importedData.tasks) {
+                        alert('Gagal impor: Struktur data dalam file JSON tidak valid atau tidak lengkap. Pastikan file berasal dari hasil Export.');
+                        return;
+                    }
+
+                    showLoading(true);
+
+                    try {
+                        // Clear existing data from Supabase (order matters due to foreign keys)
+                        await supabaseClient.from('activity_feed').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabaseClient.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabaseClient.from('fleet').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabaseClient.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabaseClient.from('customer_statuses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabaseClient.from('fleet_statuses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+                        // Insert customer statuses first (needed for customer references)
+                        if (importedData.customerStatuses.length > 0) {
+                            const customerStatusPayload = importedData.customerStatuses.map((s, idx) => ({
+                                name: s.name,
+                                color: s.color,
+                                sort_order: s.sortOrder || idx + 1
+                            }));
+                            await supabaseClient.from('customer_statuses').insert(customerStatusPayload);
+                        }
+
+                        // Insert fleet statuses
+                        if (importedData.fleetStatuses.length > 0) {
+                            const fleetStatusPayload = importedData.fleetStatuses.map((s, idx) => ({
+                                name: s.name,
+                                color: s.color,
+                                sort_order: s.sortOrder || idx + 1
+                            }));
+                            await supabaseClient.from('fleet_statuses').insert(fleetStatusPayload);
+                        }
+
+                        // Insert customers
+                        if (importedData.customers.length > 0) {
+                            const customerPayload = importedData.customers.map(c => mapCustomerToDB(c));
+                            await supabaseClient.from('customers').insert(customerPayload);
+                        }
+
+                        // Re-fetch customers to get their new IDs for fleet/task references
+                        const { data: newCustomers } = await supabaseClient.from('customers').select('*');
+                        const customerIdMap = {};
+                        if (newCustomers) {
+                            // Map old company names to new IDs
+                            importedData.customers.forEach((oldC, idx) => {
+                                const newC = newCustomers.find(nc => nc.company_name === oldC.companyName);
+                                if (newC) {
+                                    customerIdMap[oldC.id] = newC.id;
+                                }
+                            });
+                        }
+
+                        // Insert fleet with updated customer IDs
+                        if (importedData.fleet.length > 0) {
+                            const fleetPayload = importedData.fleet.map(f => {
+                                const payload = mapFleetToDB(f);
+                                payload.customer_id = customerIdMap[f.customerId] || f.customerId;
+                                return payload;
+                            });
+                            await supabaseClient.from('fleet').insert(fleetPayload);
+                        }
+
+                        // Insert tasks with updated customer IDs
+                        if (importedData.tasks.length > 0) {
+                            const taskPayload = importedData.tasks.map(t => {
+                                const payload = mapTaskToDB(t);
+                                payload.customer_id = customerIdMap[t.customerId] || t.customerId;
+                                return payload;
+                            });
+                            await supabaseClient.from('tasks').insert(taskPayload);
+                        }
+
+                        // Reload all data from Supabase
+                        await loadAllData();
+
+                        alert('Data berhasil diimpor! Dashboard akan diperbarui.');
+                        showSection('dashboard');
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('Failed to import data to database. Please try again.');
+                    } finally {
+                        showLoading(false);
+                    }
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    alert('Gagal memproses file. Pastikan file JSON diformat dengan benar.');
+                }
+            };
+            reader.readAsText(file);
+            // Reset the file input so the same file can be imported again
+            event.target.value = '';
+        }
+        
+        // --- Reports Section (UPDATED) ---
+        function renderReports() {
+            const section = document.getElementById('reports');
+            
+            const totalCustomers = customers.length;
+            const totalFleet = fleet.length;
+            const activeFleet = fleet.filter(f => f.fmsStatus === 'Active').length;
+            const completedCustomers = customers.filter(c => c.progressStatus === 'Completed').length;
+            const totalTasks = tasks.length;
+            const pendingTasks = tasks.filter(t => !t.isCompleted).length;
+
+            const summary = `
+                The total number of customers is ${totalCustomers}. Out of ${totalFleet} total fleet units, ${activeFleet} are currently active.
+                ${completedCustomers} customers have completed their implementation phase. There are ${totalTasks} tasks recorded, with ${pendingTasks} tasks still pending.
+            `;
+            
+            section.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Reports & Data Export 📈</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700 flex flex-col space-y-3">
+                        <h3 class="text-xl font-semibold text-purple-400 mb-2 border-b border-gray-700 pb-2">Data Management (Backup/Restore)</h3>
+                        <button onclick="exportDataToJson()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full"><i class="fas fa-download"></i> Export ALL Data (JSON)</button>
+                        
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">
+                        <button onclick="document.getElementById('importFile').click()" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full"><i class="fas fa-upload"></i> Import ALL Data (JSON)</button>
+                        
+                        <h3 class="text-xl font-semibold text-blue-400 mt-4 mb-2 border-b border-gray-700 pb-2">Individual Exports (CSV)</h3>
+                        <button onclick="exportToCSV('customers')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full"><i class="fas fa-file-csv"></i> Export Customers (CSV)</button>
+                        <button onclick="exportToCSV('fleet')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full"><i class="fas fa-file-csv"></i> Export Fleet (CSV)</button>
+                        <button onclick="exportToCSV('tasks')" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full"><i class="fas fa-file-csv"></i> Export Tasks (CSV)</button>
+                    </div>
+                    <div class="md:col-span-2 bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">Report Summary</h3>
+                        <p id="reportSummary" class="text-gray-300">${summary}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportToCSV(type) {
+            let data = [];
+            let headers = [];
+            let filename = '';
+
+            if (type === 'customers') {
+                // UPDATED HEADERS TO INCLUDE CLASSIFICATION TYPE and TERRAIN TYPE
+                headers = ['ID', 'Company Name', 'Primary Contact', 'Service', 'Classification', 'Terrain Type', 'Progress Status', 'Start Date', 'End Date', 'Notes'];
+                data = customers.map(c => [
+                    c.id, 
+                    c.companyName, 
+                    c.contactPerson, 
+                    c.serviceType, 
+                    c.classificationType || 'N/A', // Add classificationType
+                    c.terrainType || 'N/A', // Add terrainType
+                    c.progressStatus, 
+                    c.startDate, 
+                    c.expectedEndDate, 
+                    c.notes ? c.notes.replace(/,/g, ' ').replace(/\n/g, ' ') : '' // Clean up notes for CSV
+                ]);
+                filename = 'customers.csv';
+            } else if (type === 'fleet') {
+                headers = ['ID', 'Plate Number', 'Vehicle Type', 'Customer ID', 'FMS Status', 'Installation Date'];
+                data = fleet.map(f => [
+                    f.id, 
+                    f.plateNumber, 
+                    f.vehicleType, 
+                    f.customerId, 
+                    f.fmsStatus, 
+                    f.installDate
+                ]);
+                filename = 'fleet.csv';
+            } else if (type === 'tasks') {
+                headers = ['ID', 'Customer ID', 'Task Name', 'Completed', 'Due Date'];
+                data = tasks.map(t => [
+                    t.id, 
+                    t.customerId, 
+                    t.name, 
+                    t.isCompleted ? 'Yes' : 'No', 
+                    t.dueDate
+                ]);
+                filename = 'tasks.csv';
+            }
+
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + headers.join(',') + '\n'
+                + data.map(e => e.join(',')).join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- Utility Functions ---
+        /**
+         * Simple check if the color string is a valid hex code.
+         */
+        function isHexColor(color) {
+            return /^#([0-9A-F]{3}){1,2}$/i.test(color);
+        }
+
+        /**
+         * Returns an object containing CSS classes and inline styles based on the color value.
+         * It prioritizes inline styles for hex codes to allow custom colors.
+         * @param {string} color - The color value (e.g., '#3b82f6' or 'blue').
+         */
+        function getStatusColorData(color) {
+            // Default styles for custom hex colors (text should be readable)
+            const defaultClasses = 'text-gray-900';
+
+            if (isHexColor(color)) {
+                // Use inline styles for custom hex colors
+                // Calculate text color for better readability on custom background
+                const r = parseInt(color.substring(1, 3), 16);
+                const g = parseInt(color.substring(3, 5), 16);
+                const b = parseInt(color.substring(5, 7), 16);
+                // Simple luminance check for light/dark text
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255; 
+                const textColor = luminance > 0.5 ? '#1f2937' : '#f9fafb'; // Dark gray or light white text
+                
+                return { 
+                    classes: '', 
+                    styles: `color: ${textColor}; background-color: ${color};`,
+                    bgStyle: `background-color: ${color};`,
+                    textStyle: `color: ${color};`
+                };
+            }
+
+            // Fallback for standard Tailwind names if not a hex code (shouldn't happen with updated forms)
+            let classes = '';
+            let bgStyle = '';
+            let textStyle = '';
+
+            switch (color.toLowerCase()) {
+                case 'blue':
+                    classes = 'bg-blue-600 text-white';
+                    textStyle = 'color: #2563eb;';
+                    bgStyle = 'background-color: #2563eb;';
+                    break;
+                case 'yellow':
+                    classes = 'bg-yellow-500 text-gray-900';
+                    textStyle = 'color: #f59e0b;';
+                    bgStyle = 'background-color: #f59e0b;';
+                    break;
+                case 'green':
+                    classes = 'bg-green-600 text-white';
+                    textStyle = 'color: #059669;';
+                    bgStyle = 'background-color: #059669;';
+                    break;
+                case 'purple':
+                    classes = 'bg-purple-600 text-white';
+                    textStyle = 'color: #9333ea;';
+                    bgStyle = 'background-color: #9333ea;';
+                    break;
+                case 'red':
+                    classes = 'bg-red-600 text-white';
+                    textStyle = 'color: #dc2626;';
+                    bgStyle = 'background-color: #dc2626;';
+                    break;
+                default:
+                    classes = 'bg-gray-700 text-gray-400';
+                    textStyle = 'color: #9ca3af;';
+                    bgStyle = 'background-color: #374151;';
+            }
+            return { classes, styles: '', bgStyle, textStyle };
+        }
+
+        function sortTable(tableId, column) {
+            const table = document.getElementById(tableId);
+            const rows = Array.from(table.querySelector('tbody').rows);
+            const ascending = table.getAttribute('data-sort-asc') === 'true';
+            rows.sort((a, b) => {
+                const aText = a.cells[column].textContent.trim();
+                const bText = b.cells[column].textContent.trim();
+                // Simple numeric/locale comparison
+                return ascending ? aText.localeCompare(bText, undefined, {numeric: true}) : bText.localeCompare(aText, undefined, {numeric: true});
+            });
+            rows.forEach(row => table.querySelector('tbody').appendChild(row));
+            table.setAttribute('data-sort-asc', !ascending);
+        }
+
+        // --- Global Render Function ---
+        function renderAll() {
+            // Re-render data-only components
+            renderDashboard();
+            renderCustomerStatusesTable();
+            renderFleetStatusesTable();
+            renderReports();
+            
+            // Conditionally re-render tables if their section is currently open
+            if (!document.getElementById('customers').classList.contains('hidden') && document.getElementById('customerSearch')) {
+                 renderCustomersTable(document.getElementById('customerSearch').value.toLowerCase() || '');
+            }
+            if (!document.getElementById('fleet').classList.contains('hidden') && document.getElementById('fleetSearch')) {
+                renderFleetTable(document.getElementById('fleetSearch').value.toLowerCase() || '');
+            }
+            if (!document.getElementById('pipeline').classList.contains('hidden')) {
+                renderKanbanBoard();
+            }
+            if (!document.getElementById('timeline').classList.contains('hidden')) {
+                renderTimeline();
+            }
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadAllData();
+            renderAll();
+            showSection('dashboard');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <pre id="result"></pre>
+
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://oumwylsfvofeovnvlvvw.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91bXd5bHNmdm9mZW92bnZsdnZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjMyMjcsImV4cCI6MjA1MjkzOTIyN30.zua8RiIheXJQ3hmxryp7fA_SglouCHm'
+        );
+
+        async function testConnection() {
+            try {
+                // Test read customer_statuses
+                const { data, error } = await supabase
+                    .from('customer_statuses')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                document.getElementById('result').textContent = 
+                    '✅ Connected!\n\nData:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 
+                    '❌ Error:\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Migrate LocalStorage to Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Data Migration Tool</h1>
+    <button onclick="migrateData()">Migrate LocalStorage → Supabase</button>
+    <pre id="log"></pre>
+
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://oumwylsfvofeovnvlvvw.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91bXd5bHNmdm9mZW92bnZsdnZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjMyMjcsImV4cCI6MjA1MjkzOTIyN30.zua8RiIheXJQ3hmxryp7fA_SglouCHm'
+        );
+
+        function log(msg) {
+            document.getElementById('log').textContent += msg + '\n';
+        }
+
+        async function migrateData() {
+            try {
+                log('Starting migration...');
+                
+                // Load dari localStorage
+                const customers = JSON.parse(localStorage.getItem('motorsights_customers') || '[]');
+                log(`Found ${customers.length} customers`);
+                
+                // Transform dan insert
+                for (const c of customers) {
+                    const payload = {
+                        company_name: c.companyName,
+                        contact_person: c.contactPerson,
+                        location: c.location,
+                        acquisition_type: c.acquisitionType,
+                        estimated_revenue: parseInt(c.estimatedRevenue) || null,
+                        number_of_device: parseInt(c.numberOfDevice) || null,
+                        service_type: c.serviceType,
+                        classification_type: c.classificationType,
+                        terrain_type: c.terrainType,
+                        progress_status: c.progressStatus,
+                        start_date: c.startDate || null,
+                        expected_end_date: c.expectedEndDate || null,
+                        notes: c.notes
+                    };
+                    
+                    const { error } = await supabase.from('customers').insert([payload]);
+                    if (error) throw error;
+                    log(`✓ Migrated: ${c.companyName}`);
+                }
+                
+                log('\n✅ Migration complete!');
+            } catch (error) {
+                log('\n❌ Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

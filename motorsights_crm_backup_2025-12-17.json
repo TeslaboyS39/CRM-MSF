@@ -1,0 +1,309 @@
+{
+  "customers": [
+    {
+      "id": "1765852247498",
+      "companyName": "MTL",
+      "contactPerson": "N/A",
+      "location": "Sulawesi, Kabaena",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "2",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-12-01",
+      "expectedEndDate": "2025-12-31",
+      "notes": "2 unit trial"
+    },
+    {
+      "id": "1765852192133",
+      "companyName": "BJS",
+      "contactPerson": "N/A",
+      "location": "Kalimantan",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-12-01",
+      "expectedEndDate": "2025-12-31",
+      "notes": ""
+    },
+    {
+      "id": "1765851428020",
+      "companyName": "Unknown",
+      "contactPerson": "Bu Rezki",
+      "location": "IMIP",
+      "acquisitionType": "direct selling",
+      "estimatedRevenue": "",
+      "numberOfDevice": "1",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-12-28",
+      "expectedEndDate": "2025-12-31",
+      "notes": ""
+    },
+    {
+      "id": "1764909956392",
+      "companyName": "APL",
+      "contactPerson": "N/A",
+      "location": "Jakarta",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Standard-Full Safety Base",
+      "classificationType": "EV with FMC 650",
+      "terrainType": "On the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-11-01",
+      "expectedEndDate": "2025-01-31",
+      "notes": ""
+    },
+    {
+      "id": "1764909867317",
+      "companyName": "AMT",
+      "contactPerson": "N/A",
+      "location": "Jakarta",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "EV with FMC 650",
+      "terrainType": "On the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-11-01",
+      "expectedEndDate": "2025-12-31",
+      "notes": ""
+    },
+    {
+      "id": "1764909790090",
+      "companyName": "BIB",
+      "contactPerson": "N/A",
+      "location": "Kalimantan",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "EV with FMC 650",
+      "terrainType": "Off the road",
+      "progressStatus": "Quotation",
+      "startDate": "2025-11-01",
+      "expectedEndDate": "2025-01-31",
+      "notes": ""
+    },
+    {
+      "id": "1764909662630",
+      "companyName": "WKK",
+      "contactPerson": "N/A",
+      "location": "Sulawesi",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Lead",
+      "startDate": "2025-12-02",
+      "expectedEndDate": "2025-12-31",
+      "notes": ""
+    },
+    {
+      "id": "1764909405167",
+      "companyName": "ABM",
+      "contactPerson": "N/A",
+      "location": "Sulawesi",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Lead",
+      "startDate": "2025-12-02",
+      "expectedEndDate": "2025-12-31",
+      "notes": "12 device"
+    },
+    {
+      "id": "1764909172130",
+      "companyName": "SAJ",
+      "contactPerson": "N/A",
+      "location": "Kalimantan",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-12-01",
+      "expectedEndDate": "2025-12-08",
+      "notes": ""
+    },
+    {
+      "id": "1764757926495",
+      "companyName": "ACSL",
+      "contactPerson": "N/A",
+      "location": "Jakarta",
+      "acquisitionType": "direct selling",
+      "estimatedRevenue": "",
+      "numberOfDevice": "",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "On the road",
+      "progressStatus": "Trial",
+      "startDate": "2025-12-02",
+      "expectedEndDate": "2025-12-05",
+      "notes": ""
+    },
+    {
+      "id": "1764753855157",
+      "companyName": "TAS",
+      "contactPerson": "Bu Claudia",
+      "location": "Sulawesi, Buleleng",
+      "acquisitionType": "bundling with IEC",
+      "estimatedRevenue": "128584100",
+      "numberOfDevice": "3",
+      "serviceType": "Lite Version",
+      "classificationType": "ICE with FMC 150",
+      "terrainType": "Off the road",
+      "progressStatus": "Quotation",
+      "startDate": "2025-12-03",
+      "expectedEndDate": "2025-12-31",
+      "notes": ""
+    }
+  ],
+  "fleet": [
+    {
+      "id": "1765851446869",
+      "plateNumber": "DT-009",
+      "vehicleType": "F3000",
+      "customerId": "1765851428020",
+      "fmsStatus": "Testing",
+      "installDate": "2025-11-28"
+    },
+    {
+      "id": "1765851380916",
+      "plateNumber": "DT-034",
+      "vehicleType": "X3000",
+      "customerId": "1765852247498",
+      "fmsStatus": "Testing",
+      "installDate": "2025-12-14"
+    },
+    {
+      "id": "1765851340120",
+      "plateNumber": "DT-006",
+      "vehicleType": "X3000",
+      "customerId": "1765852247498",
+      "fmsStatus": "Testing",
+      "installDate": "2025-12-14"
+    },
+    {
+      "id": "1764753926391",
+      "plateNumber": "B 3327 CCK",
+      "vehicleType": "MS 700",
+      "customerId": "1764753855157",
+      "fmsStatus": "Inactive",
+      "installDate": ""
+    }
+  ],
+  "customerStatuses": [
+    {
+      "id": "1",
+      "name": "Lead",
+      "color": "#6b9a13"
+    },
+    {
+      "id": "2",
+      "name": "On boarding",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "3",
+      "name": "Active",
+      "color": "#10b981"
+    },
+    {
+      "id": "4",
+      "name": "Renewal/Upsell",
+      "color": "#8b5cf6"
+    },
+    {
+      "id": "5",
+      "name": "Failed/Stop",
+      "color": "#6b7280"
+    },
+    {
+      "id": "1764756951428",
+      "name": "Trial",
+      "color": "#328158"
+    },
+    {
+      "id": "1764908322088",
+      "name": "Quotation",
+      "color": "#1e1065"
+    },
+    {
+      "id": "1764908343940",
+      "name": "Contracting",
+      "color": "#9c5e2b"
+    }
+  ],
+  "fleetStatuses": [
+    {
+      "id": "1",
+      "name": "Inactive",
+      "color": "#ef4444"
+    },
+    {
+      "id": "2",
+      "name": "Testing",
+      "color": "#eab308"
+    },
+    {
+      "id": "3",
+      "name": "Active",
+      "color": "#10b981"
+    },
+    {
+      "id": "4",
+      "name": "Maintenance",
+      "color": "#a855f7"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "1764756642157",
+      "customerId": "1764753855157",
+      "name": "Bikin Quotation",
+      "dueDate": "2025-12-04",
+      "isCompleted": false,
+      "createdAt": "2025-12-03T10:10:42.157Z"
+    },
+    {
+      "id": "1764757981796",
+      "customerId": "1764757926495",
+      "name": "Trial Engine Off ke-2 ",
+      "isCompleted": false,
+      "dueDate": "2025-04-12"
+    },
+    {
+      "id": "1764757992379",
+      "customerId": "1764757926495",
+      "name": "Trial Engine Off",
+      "isCompleted": false,
+      "dueDate": "2025-02-12"
+    },
+    {
+      "id": "1764909202923",
+      "customerId": "1764909172130",
+      "name": "Trial Engine Off",
+      "isCompleted": false,
+      "dueDate": "2025-12-05"
+    }
+  ]
+}
