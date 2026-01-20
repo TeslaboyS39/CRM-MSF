@@ -1058,20 +1058,19 @@
         // --- Kanban Board Logic (Drag & Drop) ---
         function initializeKanban() {
             customerStatuses.forEach(status => {
-                const column = document.getElementById(`column-${status.name}`);
-                if (column) {
-                    new Sortable(column, {
+                // Target the cards container, not the whole column
+                const cardsContainer = document.getElementById(`cards-container-${status.name}`);
+                if (cardsContainer) {
+                    new Sortable(cardsContainer, {
                         group: 'kanban',
                         animation: 150,
+                        draggable: '.kanban-card', // Only kanban-card elements are draggable
                         onEnd: function (evt) {
                             const itemId = evt.item.getAttribute('data-id');
-                            const newStatus = evt.to.getAttribute('data-status');
+                            // Get status from the parent column
+                            const newStatus = evt.to.closest('.kanban-column').getAttribute('data-status');
                             updateCustomerStatusFromKanban(itemId, newStatus);
-                        },
-                        // Only allow drag on the card itself, not the status count
-                        filter: '.status-count',
-                        preventOnFilter: false,
-                        handle: '.kanban-card'
+                        }
                     });
                 }
             });
