@@ -195,12 +195,15 @@
                 acquisitionType: row.acquisition_type,
                 estimatedRevenue: row.estimated_revenue,
                 numberOfDevice: row.number_of_device,
+                subscriptionPeriod: row.subscription_period,
                 serviceType: row.service_type,
                 classificationType: row.classification_type,
                 terrainType: row.terrain_type,
+                segmentation: row.segmentation,
                 progressStatus: row.progress_status,
-                startDate: row.start_date,
-                expectedEndDate: row.expected_end_date,
+                leadDate: row.lead_date,
+                estimatedPoDate: row.estimated_po_date,
+                estimatedPaymentDate: row.estimated_payment_date,
                 notes: row.notes
             };
         }
@@ -213,12 +216,15 @@
                 acquisition_type: customer.acquisitionType,
                 estimated_revenue: customer.estimatedRevenue ? parseInt(customer.estimatedRevenue) : null,
                 number_of_device: customer.numberOfDevice ? parseInt(customer.numberOfDevice) : null,
+                subscription_period: customer.subscriptionPeriod ? parseInt(customer.subscriptionPeriod) : null,
                 service_type: customer.serviceType,
                 classification_type: customer.classificationType,
                 terrain_type: customer.terrainType,
+                segmentation: customer.segmentation || null,
                 progress_status: customer.progressStatus,
-                start_date: customer.startDate || null,
-                expected_end_date: customer.expectedEndDate || null,
+                lead_date: customer.leadDate || null,
+                estimated_po_date: customer.estimatedPoDate || null,
+                estimated_payment_date: customer.estimatedPaymentDate || null,
                 notes: customer.notes || null
             };
         }
@@ -583,7 +589,11 @@
                             <label for="numberOfDevice" class="block text-sm font-medium text-gray-300">Number of Devices (Optional)</label>
                             <input type="number" id="numberOfDevice" min="0" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., 10">
                         </div>
-                        
+                        <div>
+                            <label for="subscriptionPeriod" class="block text-sm font-medium text-gray-300">Subscription Period (Months)</label>
+                            <input type="number" id="subscriptionPeriod" min="1" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., 12">
+                        </div>
+
                         <div>
                             <label for="serviceType" class="block text-sm font-medium text-gray-300">Service Type</label>
                             <select id="serviceType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
@@ -605,9 +615,16 @@
                         
                         <div>
                             <label for="terrainType" class="block text-sm font-medium text-gray-300">Terrain Type</label>
-                            <select id="terrainType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                            <select id="terrainType" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100" onchange="updateSegmentationOptions()">
                                 <option value="On the road">On the road</option>
                                 <option value="Off the road">Off the road</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="segmentation" class="block text-sm font-medium text-gray-300">Segmentation</label>
+                            <select id="segmentation" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                                <option value="Logistic">Logistic</option>
+                                <option value="Passenger">Passenger</option>
                             </select>
                         </div>
 
@@ -616,12 +633,16 @@
                             <select id="progressStatus" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
                         </div>
                         <div>
-                            <label for="startDate" class="block text-sm font-medium text-gray-300">Start Date</label>
-                            <input type="date" id="startDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                            <label for="leadDate" class="block text-sm font-medium text-gray-300">Lead Date</label>
+                            <input type="date" id="leadDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
                         </div>
                         <div>
-                            <label for="expectedEndDate" class="block text-sm font-medium text-gray-300">Expected End Date</label>
-                            <input type="date" id="expectedEndDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                            <label for="estimatedPoDate" class="block text-sm font-medium text-gray-300">Estimated PO Date</label>
+                            <input type="date" id="estimatedPoDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="estimatedPaymentDate" class="block text-sm font-medium text-gray-300">Estimated Payment Date</label>
+                            <input type="date" id="estimatedPaymentDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
                         </div>
                         <div>
                             <label for="notes" class="block text-sm font-medium text-gray-300">Notes</label>
@@ -773,23 +794,25 @@
                         document.getElementById('customerId').value = data.id;
                         document.getElementById('companyName').value = data.companyName;
                         document.getElementById('contactPerson').value = data.contactPerson;
-                        // START: ADDED/CORRECTED CUSTOMER FIELDS (Location, Acquisition Type, Revenue, Devices)
                         document.getElementById('location').value = data.location || '';
-                        document.getElementById('acquisitionType').value = data.acquisitionType || 'direct selling'; 
+                        document.getElementById('acquisitionType').value = data.acquisitionType || 'direct selling';
                         document.getElementById('estimatedRevenue').value = data.estimatedRevenue || '';
                         document.getElementById('numberOfDevice').value = data.numberOfDevice || '';
-                        // END: ADDED/CORRECTED CUSTOMER FIELDS
+                        document.getElementById('subscriptionPeriod').value = data.subscriptionPeriod || '';
                         document.getElementById('serviceType').value = data.serviceType;
-                        // NEW FIELD
-                        document.getElementById('classificationType').value = data.classificationType || 'EV with FMC 650'; 
-                        // NEW FIELD: TERRAIN TYPE
+                        document.getElementById('classificationType').value = data.classificationType || 'EV with FMC 650';
                         document.getElementById('terrainType').value = data.terrainType || 'On the road';
-                        
+                        updateSegmentationOptions(data.segmentation);
+
                         document.getElementById('progressStatus').value = data.progressStatus;
-                        document.getElementById('startDate').value = data.startDate || '';
-                        document.getElementById('expectedEndDate').value = data.expectedEndDate || '';
+                        document.getElementById('leadDate').value = data.leadDate || '';
+                        document.getElementById('estimatedPoDate').value = data.estimatedPoDate || '';
+                        document.getElementById('estimatedPaymentDate').value = data.estimatedPaymentDate || '';
                         document.getElementById('notes').value = data.notes || '';
-                    } else { document.getElementById('customerId').value = ''; }
+                    } else {
+                        document.getElementById('customerId').value = '';
+                        updateSegmentationOptions(); // Initialize segmentation for new customer
+                    }
                 } else if (modalId === 'fleetModal') {
                     populateCustomerOwnerSelect();
                     populateFmsStatusSelect();
@@ -842,12 +865,15 @@
                     acquisitionType: document.getElementById('acquisitionType').value,
                     estimatedRevenue: document.getElementById('estimatedRevenue').value,
                     numberOfDevice: document.getElementById('numberOfDevice').value,
+                    subscriptionPeriod: document.getElementById('subscriptionPeriod').value,
                     serviceType: document.getElementById('serviceType').value,
                     classificationType: document.getElementById('classificationType').value,
                     terrainType: document.getElementById('terrainType').value,
+                    segmentation: document.getElementById('segmentation').value,
                     progressStatus: document.getElementById('progressStatus').value,
-                    startDate: document.getElementById('startDate').value,
-                    expectedEndDate: document.getElementById('expectedEndDate').value,
+                    leadDate: document.getElementById('leadDate').value,
+                    estimatedPoDate: document.getElementById('estimatedPoDate').value,
+                    estimatedPaymentDate: document.getElementById('estimatedPaymentDate').value,
                     notes: document.getElementById('notes').value,
                 };
 
@@ -1031,6 +1057,34 @@
             });
         }
 
+        // Dynamic segmentation options based on terrain type
+        function updateSegmentationOptions(selectedValue = null) {
+            const terrainType = document.getElementById('terrainType').value;
+            const segmentationSelect = document.getElementById('segmentation');
+            if (!segmentationSelect) return;
+
+            segmentationSelect.innerHTML = '';
+
+            let options = [];
+            if (terrainType === 'On the road') {
+                options = ['Logistic', 'Passenger'];
+            } else if (terrainType === 'Off the road') {
+                options = ['Nickel', 'Coal', 'Plantation', 'Others'];
+            }
+
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                segmentationSelect.appendChild(option);
+            });
+
+            // Set selected value if provided
+            if (selectedValue && options.includes(selectedValue)) {
+                segmentationSelect.value = selectedValue;
+            }
+        }
+
         function populateFmsStatusSelect() {
             const select = document.getElementById('fmsStatus');
             if (!select) return;
@@ -1129,7 +1183,7 @@
                         <p class="text-lg font-semibold text-gray-50 mb-1">${customer.companyName}</p>
                         <p class="text-sm text-gray-400 mb-2">${customer.serviceType} | ${customer.terrainType || 'N/A'}</p>
                         <div class="flex justify-between items-center text-xs text-gray-400">
-                            ${customer.expectedEndDate ? `<i class="far fa-calendar-alt ${new Date(customer.expectedEndDate) < new Date() ? 'text-red-400' : 'text-yellow-400'}"></i> ${customer.expectedEndDate}` : '' }
+                            ${customer.estimatedPoDate ? `<i class="far fa-calendar-alt ${new Date(customer.estimatedPoDate) < new Date() ? 'text-red-400' : 'text-yellow-400'}"></i> ${customer.estimatedPoDate}` : '' }
                             <span class="flex items-center space-x-1 font-bold ${pendingTasks > 0 ? 'text-orange-400' : 'text-gray-400'}">
                                 <i class="fas fa-tasks"></i> ${pendingTasks} Tasks
                             </span>
@@ -1281,10 +1335,12 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 2)">Service Type</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 3)">Classification</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 4)">Terrain Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 5)">Segmentation</th>
 
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-pointer" onclick="sortTable('customersTable', 5)">Progress Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 6)">Start Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 7)">End Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-pointer" onclick="sortTable('customersTable', 6)">Progress Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 7)">Lead Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 8)">Est. PO Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable('customersTable', 9)">Est. Payment Date</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Tasks Pending</th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                             </tr>
@@ -1351,23 +1407,25 @@
                 const statusData = statusObj ? getStatusColorData(statusObj.color) : { classes: 'bg-gray-700 text-gray-400', styles: '' };
                 const pendingTasks = tasks.filter(t => t.customerId === customer.id && !t.isCompleted).length;
 
-                const endDateClass = customer.expectedEndDate && new Date(customer.expectedEndDate) < new Date() ? 'text-red-400' : 'text-gray-400';
+                const poDateClass = customer.estimatedPoDate && new Date(customer.estimatedPoDate) < new Date() ? 'text-red-400' : 'text-gray-400';
 
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${customer.companyName}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.contactPerson}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.location || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.acquisitionType || 'N/A'}</td>                    
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.acquisitionType || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 text-center">${customer.numberOfDevice || '0'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.serviceType}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.classificationType || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.terrainType || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.segmentation || 'N/A'}</td>
 
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="${statusData.classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${statusData.styles}">${customer.progressStatus}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.startDate || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm ${endDateClass}">${customer.expectedEndDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.leadDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${poDateClass}">${customer.estimatedPoDate || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customer.estimatedPaymentDate || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${pendingTasks > 0 ? 'text-orange-400' : 'text-gray-400'}">
                         ${pendingTasks}
                     </td>
@@ -1853,17 +1911,24 @@
             customers.forEach(customer => {
                 const status = customerStatuses.find(s => s.name === customer.progressStatus);
                 const color = status ? status.color : '#6b7280'; // Use color value directly
-                if (customer.startDate) {
+                if (customer.leadDate) {
                     events.push({
-                        title: `${customer.companyName} - Start (${customer.progressStatus})`,
-                        start: customer.startDate,
+                        title: `${customer.companyName} - Lead Date (${customer.progressStatus})`,
+                        start: customer.leadDate,
                         color: color
                     });
                 }
-                if (customer.expectedEndDate) {
+                if (customer.estimatedPoDate) {
                     events.push({
-                        title: `${customer.companyName} - Due Date (${customer.progressStatus})`,
-                        start: customer.expectedEndDate,
+                        title: `${customer.companyName} - Est. PO Date (${customer.progressStatus})`,
+                        start: customer.estimatedPoDate,
+                        color: color
+                    });
+                }
+                if (customer.estimatedPaymentDate) {
+                    events.push({
+                        title: `${customer.companyName} - Est. Payment Date (${customer.progressStatus})`,
+                        start: customer.estimatedPaymentDate,
                         color: color
                     });
                 }
@@ -2199,19 +2264,21 @@
             let filename = '';
 
             if (type === 'customers') {
-                // UPDATED HEADERS TO INCLUDE CLASSIFICATION TYPE and TERRAIN TYPE
-                headers = ['ID', 'Company Name', 'Primary Contact', 'Service', 'Classification', 'Terrain Type', 'Progress Status', 'Start Date', 'End Date', 'Notes'];
+                headers = ['ID', 'Company Name', 'Primary Contact', 'Service', 'Classification', 'Terrain Type', 'Segmentation', 'Subscription Period', 'Progress Status', 'Lead Date', 'Est. PO Date', 'Est. Payment Date', 'Notes'];
                 data = customers.map(c => [
-                    c.id, 
-                    c.companyName, 
-                    c.contactPerson, 
-                    c.serviceType, 
-                    c.classificationType || 'N/A', // Add classificationType
-                    c.terrainType || 'N/A', // Add terrainType
-                    c.progressStatus, 
-                    c.startDate, 
-                    c.expectedEndDate, 
-                    c.notes ? c.notes.replace(/,/g, ' ').replace(/\n/g, ' ') : '' // Clean up notes for CSV
+                    c.id,
+                    c.companyName,
+                    c.contactPerson,
+                    c.serviceType,
+                    c.classificationType || 'N/A',
+                    c.terrainType || 'N/A',
+                    c.segmentation || 'N/A',
+                    c.subscriptionPeriod || 'N/A',
+                    c.progressStatus,
+                    c.leadDate || '',
+                    c.estimatedPoDate || '',
+                    c.estimatedPaymentDate || '',
+                    c.notes ? c.notes.replace(/,/g, ' ').replace(/\n/g, ' ') : ''
                 ]);
                 filename = 'customers.csv';
             } else if (type === 'fleet') {
