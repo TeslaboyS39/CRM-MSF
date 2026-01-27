@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>Motor Sights Fleet - CRM Dashboard (Dark Mode)</title>
-    <script src="config.js"></script>
+    <script src="supabase-proxy-client.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         /* Custom Scrollbar Styling for Dark Mode */
@@ -137,11 +136,9 @@
     
     <script>
         // ==============================================
-        // SUPABASE CONFIGURATION (loaded from config.js)
+        // SUPABASE CLIENT (via proxy - credentials hidden server-side)
+        // supabaseClient is defined in supabase-proxy-client.js
         // ==============================================
-        const SUPABASE_URL = CONFIG.SUPABASE_URL;
-        const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ==============================================
         // DATA VARIABLES (populated from Supabase)
