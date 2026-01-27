@@ -2,7 +2,7 @@
 .env
 
 # Config files with credentials (use .example.js as template)
-# config.js
+config.js
 project-folder/supabase-config.js
 
 # IDE
