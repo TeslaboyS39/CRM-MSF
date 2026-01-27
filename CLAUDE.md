@@ -4,48 +4,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Motor Sights Fleet CRM - A single-page application for managing automotive fleet customers and vehicles. Built with vanilla JavaScript and Tailwind CSS.
+Motor Sights Fleet CRM - A single-page application for managing automotive fleet customers and vehicles. Built with vanilla JavaScript, Tailwind CSS, and Supabase backend via Cloudflare Pages Functions proxy.
 
 ## Technology Stack
 
 - **Frontend**: HTML5, JavaScript (ES6+), Tailwind CSS (CDN)
-- **Data Storage**: localStorage with JSON import/export
+- **Backend**: Cloudflare Pages Functions (serverless proxy)
+- **Database**: Supabase (PostgreSQL)
 - **Libraries**: FullCalendar v6.1.15, Sortable.js, Font Awesome 6.5.2
-- **No build process**: All dependencies loaded via CDN
+- **Deployment**: Cloudflare Pages
 
 ## File Structure
 
 ```
-index1-dev.html              # MAIN DEVELOPMENT FILE (localStorage + JSON import/export)
-motorsights_crm_backup_*.json # Data backup files
+index.html                      # Main production app (Supabase via proxy)
+supabase-proxy-client.js        # Frontend client (calls /api/* proxy)
+functions/                      # Cloudflare Pages Functions
+└── api/
+    └── [[path]].js             # Supabase proxy (credentials server-side)
 
-project-folder/              # EXPERIMENTAL: Supabase migration attempt (WIP)
-├── index.html               # Supabase-backed version
-├── db-operations.js         # Database CRUD functions
-├── supabase-config.js       # Supabase client initialization
-├── migrate-data.html        # localStorage → Supabase migration tool
-└── test-connection.html     # Database connection testing
+config.js                       # Local dev credentials (gitignored)
+config.example.js               # Credentials template
+index1-dev.html                 # Legacy localStorage version
+
+project-folder/                 # DEPRECATED: Old Supabase migration attempt
 ```
 
 ## Architecture
 
-**Main App (index1-dev.html)**:
-- Data stored in localStorage
-- JSON export/import for backup and data transfer
-- All logic embedded in single HTML file
+**Production (Cloudflare Pages)**:
+```
+Browser → supabase-proxy-client.js → /api/* → Cloudflare Function → Supabase
+```
+- Credentials stored in Cloudflare environment variables
+- Never exposed to client
 
-**Data Flow**: Load from localStorage → In-Memory Arrays → Render UI → User Action → Save to localStorage
+**Local Development**:
+- Use `config.js` with direct Supabase connection, OR
+- Use `npx wrangler pages dev .` to run Functions locally
 
-**UI Sections**: Dashboard (KPIs), Pipeline (Kanban), Customers (table), Fleet (table), Timeline (calendar), Settings (status management)
+**Data Flow**: API Request → Proxy Client → Cloudflare Function → Supabase → Response
 
-**Supabase Version (project-folder/)** - Experimental migration:
-- `loadAllData()` - Fetches all entities via `Promise.all()`
-- `saveCustomer()`, `saveFleet()`, `saveTask()` - Insert/update with activity logging
-- `addActivity()` - Logs actions to activity_feed table
+**UI Sections**: Dashboard (KPIs), Pipeline (Kanban), Customers (table), Fleet (table), Timeline (calendar), Reports, Settings
 
 ## Data Schema
-
-Applies to both localStorage (main) and Supabase (experimental) versions:
 
 | Entity | Key Fields |
 |--------|------------|
@@ -64,10 +66,15 @@ Applies to both localStorage (main) and Supabase (experimental) versions:
 - **Async operations**: Wrap in try-catch with loading overlay, use `console.error()` for logging
 - **Forms**: Modal-based CRUD with basic required field validation
 
+## Key Files
+
+- **supabase-proxy-client.js**: Drop-in replacement for Supabase JS client, routes through `/api/*`
+- **functions/api/[[path]].js**: Catches all `/api/*` requests, forwards to Supabase with credentials
+- **index.html**: Main app, uses `supabaseClient.from('table')` pattern
+
 ## Development Notes
 
-- **Main development**: Work on `index1-dev.html` - uses localStorage with JSON import/export
-- **Supabase migration**: `project-folder/` is experimental; test connectivity via `test-connection.html`
 - Activity feed is limited to 10 most recent items
 - CSV export headers may need updating when schema changes (see note.md)
 - Kanban drag-drop identifies customers by company name
+- Environment variables required on Cloudflare: `SUPABASE_URL`, `SUPABASE_ANON_KEY`

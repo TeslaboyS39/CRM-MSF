@@ -16,16 +16,30 @@ A modern, single-page CRM application for managing automotive fleet customers an
 ## Tech Stack
 
 - **Frontend:** HTML5, JavaScript (ES6+), Tailwind CSS
-- **Backend:** Supabase (PostgreSQL)
+- **Backend:** Supabase (PostgreSQL) via Cloudflare Pages Functions proxy
 - **Libraries:** FullCalendar, Sortable.js, Font Awesome
-- **Deployment:** Netlify
+- **Deployment:** Cloudflare Pages
+
+## Architecture
+
+```
+Browser → Cloudflare Pages (static files)
+            ↓
+          /api/* requests
+            ↓
+        Cloudflare Pages Functions (serverless)
+            ↓
+        Supabase REST API
+```
+
+Credentials are stored server-side in Cloudflare environment variables, never exposed to the client.
 
 ## Getting Started
 
 ### Prerequisites
 
 - A Supabase account and project
-- Node.js (for Netlify build)
+- A Cloudflare account
 
 ### Local Development
 
@@ -35,20 +49,17 @@ A modern, single-page CRM application for managing automotive fleet customers an
    cd crm-motorsights-fleet
    ```
 
-2. Create `config.js` from the template:
+2. Create `config.js` from the template (for local dev only):
    ```bash
    cp config.example.js config.js
    ```
 
-3. Edit `config.js` with your Supabase credentials:
-   ```javascript
-   const CONFIG = {
-       SUPABASE_URL: 'your-supabase-url',
-       SUPABASE_ANON_KEY: 'your-supabase-anon-key'
-   };
-   ```
+3. Edit `config.js` with your Supabase credentials.
 
-4. Open `index.html` with Live Server or any local server.
+4. For local testing with Functions, use Wrangler:
+   ```bash
+   npx wrangler pages dev .
+   ```
 
 ### Supabase Setup
 
@@ -61,25 +72,38 @@ Create the following tables in your Supabase project:
 - `fleet_statuses` - Customizable fleet status options
 - `activity_feed` - Activity logging
 
-### Netlify Deployment
+### Cloudflare Pages Deployment
 
 1. Push the repository to GitHub
-2. Connect to Netlify and import the repository
-3. Add environment variables in Netlify dashboard:
+2. Connect to Cloudflare Pages and import the repository
+3. Configure build settings:
+   - Build command: (leave empty)
+   - Build output directory: `/`
+4. Add environment variables in Cloudflare Pages settings:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-4. Deploy - the build script will generate config files automatically
+5. Deploy
 
 ## Project Structure
 
 ```
-├── index.html              # Main application
-├── config.js               # Supabase credentials (gitignored)
-├── config.example.js       # Credentials template
-├── build.js                # Netlify build script
-├── netlify.toml            # Netlify configuration
-└── project-folder/         # Experimental features (WIP)
+├── index.html                  # Main application
+├── supabase-proxy-client.js    # Frontend Supabase client (calls proxy)
+├── functions/                  # Cloudflare Pages Functions (backend)
+│   └── api/
+│       └── [[path]].js         # Supabase proxy (credentials hidden here)
+├── config.js                   # Local dev credentials (gitignored)
+├── config.example.js           # Credentials template
+├── build.js                    # Legacy Netlify build script
+└── project-folder/             # Experimental features (WIP)
 ```
+
+## Security
+
+- Supabase credentials are stored in Cloudflare environment variables
+- The `/api/*` proxy handles all database requests server-side
+- No credentials are exposed in client-side code or network requests
+- Enable Row Level Security (RLS) on Supabase tables for additional protection
 
 ## License
 
