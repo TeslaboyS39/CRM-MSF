@@ -78,3 +78,21 @@ Browser → supabase-proxy-client.js → /api/* → Cloudflare Function → Supa
 - CSV export headers may need updating when schema changes (see note.md)
 - Kanban drag-drop identifies customers by company name
 - Environment variables required on Cloudflare: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+
+## Learnings Log
+- Baca `.learnings/LEARNINGS.md` di awal setiap session
+- Setiap kali dikoreksi user, catat di `.learnings/LEARNINGS.md`
+- Format:
+```yaml
+- date: YYYY-MM-DD
+  cat: kategori singkat
+  误: apa yang salah
+  正: apa yang benar
+  则: aturan ke depan
+```
+- Jangan duplicate entry
+- Maksimal 2 baris per field
+
+## Memory
+- Di awal session, baca file terbaru di folder `MEMORY/`
+- Di tengah session setelah selesai task besar, tawarkan user untuk checkpoint

@@ -201,6 +201,11 @@
                 leadDate: row.lead_date,
                 estimatedPoDate: row.estimated_po_date,
                 estimatedPaymentDate: row.estimated_payment_date,
+                trialDate: row.trial_date,
+                quotationDate: row.quotation_date,
+                poDate: row.po_date,
+                estProfit: row.est_profit,
+                salesName: row.sales_name,
                 notes: row.notes
             };
         }
@@ -222,6 +227,11 @@
                 lead_date: customer.leadDate || null,
                 estimated_po_date: customer.estimatedPoDate || null,
                 estimated_payment_date: customer.estimatedPaymentDate || null,
+                trial_date: customer.trialDate || null,
+                quotation_date: customer.quotationDate || null,
+                po_date: customer.poDate || null,
+                est_profit: customer.estProfit ? parseInt(customer.estProfit) : null,
+                sales_name: customer.salesName || null,
                 notes: customer.notes || null
             };
         }
@@ -642,6 +652,26 @@
                             <input type="date" id="estimatedPaymentDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
                         </div>
                         <div>
+                            <label for="salesName" class="block text-sm font-medium text-gray-300">Sales Name</label>
+                            <input type="text" id="salesName" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., Budi Santoso">
+                        </div>
+                        <div>
+                            <label for="trialDate" class="block text-sm font-medium text-gray-300">Trial Date</label>
+                            <input type="date" id="trialDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="quotationDate" class="block text-sm font-medium text-gray-300">Quotation Date</label>
+                            <input type="date" id="quotationDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="poDate" class="block text-sm font-medium text-gray-300">PO Date</label>
+                            <input type="date" id="poDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
+                            <label for="estProfit" class="block text-sm font-medium text-gray-300">Est. Profit</label>
+                            <input type="number" id="estProfit" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., 5000000">
+                        </div>
+                        <div>
                             <label for="notes" class="block text-sm font-medium text-gray-300">Notes</label>
                             <textarea id="notes" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" rows="3"></textarea>
                         </div>
@@ -805,6 +835,11 @@
                         document.getElementById('leadDate').value = data.leadDate || '';
                         document.getElementById('estimatedPoDate').value = data.estimatedPoDate || '';
                         document.getElementById('estimatedPaymentDate').value = data.estimatedPaymentDate || '';
+                        document.getElementById('salesName').value = data.salesName || '';
+                        document.getElementById('trialDate').value = data.trialDate || '';
+                        document.getElementById('quotationDate').value = data.quotationDate || '';
+                        document.getElementById('poDate').value = data.poDate || '';
+                        document.getElementById('estProfit').value = data.estProfit || '';
                         document.getElementById('notes').value = data.notes || '';
                     } else {
                         document.getElementById('customerId').value = '';
@@ -871,6 +906,11 @@
                     leadDate: document.getElementById('leadDate').value,
                     estimatedPoDate: document.getElementById('estimatedPoDate').value,
                     estimatedPaymentDate: document.getElementById('estimatedPaymentDate').value,
+                    salesName: document.getElementById('salesName').value,
+                    trialDate: document.getElementById('trialDate').value,
+                    quotationDate: document.getElementById('quotationDate').value,
+                    poDate: document.getElementById('poDate').value,
+                    estProfit: document.getElementById('estProfit').value,
                     notes: document.getElementById('notes').value,
                 };
 

@@ -18,3 +18,16 @@ yang kurang:
         >start date diubah jadi Lead Date[[done]]
         >Expected end date diubah jadi est payment date[[done]]
         >tambahin est po date[[done]]
+    [ ]harusnya ada urutan container activitynya based on urutan process, disetting di menu 'Settings'[[ ]]
+-di form add customer
+    [ ]tambahin isian:
+        -trial date [[ ]]
+        -quotation date [[ ]]
+        -po date [[ ]]
+        -est profit [[ ]]
+        -sales name [[ ]]
+-di menu timeline
+    [ ]tambahin filter [[ ]]
+    [ ]tambahin export tabel ke csv [[ ]]
+
+
