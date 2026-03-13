@@ -164,6 +164,9 @@
         let customers = [];
         let fleet = [];
         let sales = [];
+        let fleetPage = 1;
+        let salesPage = 1;
+        const PAGE_SIZE = 10;
         let customerStatuses = [];
         let fleetStatuses = [];
         let tasks = [];
@@ -1483,7 +1486,7 @@
                     <button onclick="toggleModal('fleetModal')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
                         + Add New Fleet (Create)
                     </button>
-                    <input type="text" id="fleetSearch" placeholder="Search fleet..." oninput="renderFleetTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                    <input type="text" id="fleetSearch" placeholder="Search fleet..." oninput="fleetPage=1; renderFleetTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
                 </div>
                 <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
                     <table class="min-w-full divide-y divide-gray-700" id="fleetTable">
@@ -1501,8 +1504,9 @@
                         <tbody id="fleetTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
                     </table>
                 </div>
+                <div id="fleetPagination" class="flex justify-between items-center mt-4 text-sm text-gray-400"></div>
             `;
-            // Call render table content immediately after creating the structure
+            fleetPage = 1;
             renderFleetTable(document.getElementById('fleetSearch')?.value || '');
         }
 
@@ -1565,15 +1569,19 @@
             if (!tableBody) return;
             tableBody.innerHTML = '';
 
-            const filteredFleet = fleet.filter(f => 
-                f.plateNumber.toLowerCase().includes(searchTerm) || 
+            const filteredFleet = fleet.filter(f =>
+                f.plateNumber.toLowerCase().includes(searchTerm) ||
                 (f.unitBrand && f.unitBrand.toLowerCase().includes(searchTerm)) ||
-                f.vehicleType.toLowerCase().includes(searchTerm) || 
-                f.fmsStatus.toLowerCase().includes(searchTerm) || 
+                f.vehicleType.toLowerCase().includes(searchTerm) ||
+                f.fmsStatus.toLowerCase().includes(searchTerm) ||
                 (customers.find(c => c.id === f.customerId)?.companyName.toLowerCase().includes(searchTerm))
             );
 
-            filteredFleet.forEach(item => {
+            const totalPages = Math.ceil(filteredFleet.length / PAGE_SIZE);
+            if (fleetPage > totalPages) fleetPage = Math.max(1, totalPages);
+            const paged = filteredFleet.slice((fleetPage - 1) * PAGE_SIZE, fleetPage * PAGE_SIZE);
+
+            paged.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-700';
 
@@ -1598,6 +1606,10 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+            });
+            renderPaginationControls('fleetPagination', fleetPage, filteredFleet.length, function(p) {
+                fleetPage = p;
+                renderFleetTable(document.getElementById('fleetSearch')?.value.toLowerCase() || '');
             });
         }
 
@@ -2091,6 +2103,23 @@
             renderServiceTypeChart();
         }
 
+
+        function renderPaginationControls(containerId, currentPage, totalItems, onPageChange) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            const start = (currentPage - 1) * PAGE_SIZE + 1;
+            const end = Math.min(currentPage * PAGE_SIZE, totalItems);
+            container.innerHTML = `
+                <span>${start}–${end} of ${totalItems}</span>
+                <div class="flex space-x-1">
+                    <button onclick="(${onPageChange})(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">‹ Prev</button>
+                    <span class="px-3 py-1 bg-gray-700 rounded">${currentPage} / ${totalPages}</span>
+                    <button onclick="(${onPageChange})(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">Next ›</button>
+                </div>
+            `;
+        }
 
         function toggleOverdue(btn) {
             const extras = btn.parentElement.querySelectorAll('.overdue-extra');
@@ -2785,7 +2814,7 @@
                     <button onclick="toggleModal('salesModal')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
                         + Add New Sales
                     </button>
-                    <input type="text" id="salesSearch" placeholder="Search sales..." oninput="renderSalesTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                    <input type="text" id="salesSearch" placeholder="Search sales..." oninput="salesPage=1; renderSalesTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
                 </div>
                 <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
                     <table class="min-w-full divide-y divide-gray-700" id="salesTable">
@@ -2800,7 +2829,9 @@
                         <tbody id="salesTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
                     </table>
                 </div>
+                <div id="salesPagination" class="flex justify-between items-center mt-4 text-sm text-gray-400"></div>
             `;
+            salesPage = 1;
             renderSalesTable();
         }
 
@@ -2810,7 +2841,11 @@
             tableBody.innerHTML = '';
 
             const filtered = sales.filter(s => s.name.toLowerCase().includes(searchTerm));
-            filtered.forEach(s => {
+            const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+            if (salesPage > totalPages) salesPage = Math.max(1, totalPages);
+            const paged = filtered.slice((salesPage - 1) * PAGE_SIZE, salesPage * PAGE_SIZE);
+
+            paged.forEach(s => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-700';
                 const customerCount = customers.filter(c => c.salesId === s.id).length;
@@ -2827,6 +2862,10 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+            });
+            renderPaginationControls('salesPagination', salesPage, filtered.length, function(p) {
+                salesPage = p;
+                renderSalesTable(document.getElementById('salesSearch')?.value.toLowerCase() || '');
             });
         }
 
