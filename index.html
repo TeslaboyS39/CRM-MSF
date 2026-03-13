@@ -110,6 +110,7 @@
                         <table class="min-w-full divide-y divide-gray-700">
                             <thead class="bg-gray-700">
                                 <tr>
+                                    <th class="px-3 py-3 w-8"></th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Color</th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
@@ -1981,9 +1982,11 @@
             customerStatuses.forEach(status => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-700';
+                tr.setAttribute('data-id', status.id);
                 const { classes, styles } = getStatusColorData(status.color);
 
                 tr.innerHTML = `
+                    <td class="px-3 py-4 text-gray-500 cursor-grab" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${status.name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <span class="${classes} text-xs font-semibold px-2.5 py-0.5 rounded-full" style="${styles} background-color: ${status.color}; border: 1px solid ${status.color};">
@@ -1996,6 +1999,31 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+            });
+
+            // Init drag-and-drop
+            if (tableBody._sortable) tableBody._sortable.destroy();
+            tableBody._sortable = new Sortable(tableBody, {
+                animation: 150,
+                handle: '.fa-grip-vertical',
+                onEnd: async function() {
+                    const rows = Array.from(tableBody.querySelectorAll('tr'));
+                    const updates = rows.map((row, index) => ({
+                        id: row.getAttribute('data-id'),
+                        sort_order: index + 1
+                    }));
+                    // Update local array order
+                    customerStatuses = updates.map(u => customerStatuses.find(s => s.id === u.id));
+                    customerStatuses.forEach((s, i) => s.sortOrder = i + 1);
+                    // Save to DB
+                    try {
+                        await Promise.all(updates.map(u =>
+                            supabaseClient.from('customer_statuses').update({ sort_order: u.sort_order }).eq('id', u.id)
+                        ));
+                    } catch(e) {
+                        console.error('Error saving status order:', e);
+                    }
+                }
             });
         }
 
