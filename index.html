@@ -1879,22 +1879,54 @@
 
             // --- START: ADDED NEW STATS CALCULATION ---
             let totalEstimatedRevenue = 0;
+            let totalEstimatedProfit = 0;
             let bundlingCount = 0;
             let directSellingCount = 0;
 
             customers.forEach(customer => {
-                // 1. Hitung Total Estimated Revenue
-                // Pastikan estimatedRevenue adalah angka sebelum dihitung
-                const revenue = parseInt(customer.estimatedRevenue) || 0;
-                totalEstimatedRevenue += revenue;
-
-                // 2. Hitung Bundling vs Direct Selling
-                if (customer.acquisitionType === 'bundling with IEC') {
-                    bundlingCount++;
-                } else if (customer.acquisitionType === 'direct selling') {
-                    directSellingCount++;
-                }
+                totalEstimatedRevenue += parseInt(customer.estimatedRevenue) || 0;
+                totalEstimatedProfit += parseInt(customer.estProfit) || 0;
+                if (customer.acquisitionType === 'bundling with IEC') bundlingCount++;
+                else if (customer.acquisitionType === 'direct selling') directSellingCount++;
             });
+
+            // Overdue: est_po_date passed but no po_date yet
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const overdueCustomers = customers.filter(c =>
+                c.estimatedPoDate && !c.poDate && new Date(c.estimatedPoDate) < today
+            ).sort((a, b) => new Date(a.estimatedPoDate) - new Date(b.estimatedPoDate));
+
+            // Revenue per pipeline stage
+            const revenueByStage = customerStatuses.map(s => ({
+                name: s.name,
+                color: s.color,
+                revenue: customers.filter(c => c.progressStatus === s.name)
+                            .reduce((sum, c) => sum + (parseInt(c.estimatedRevenue) || 0), 0),
+                count: customers.filter(c => c.progressStatus === s.name).length
+            })).filter(s => s.count > 0);
+            const maxStageRevenue = Math.max(...revenueByStage.map(s => s.revenue), 1);
+
+            // Segmentation breakdown
+            const segMap = {};
+            customers.forEach(c => {
+                if (!c.segmentation) return;
+                const key = `${c.terrainType} — ${c.segmentation}`;
+                if (!segMap[key]) segMap[key] = { count: 0, revenue: 0, terrain: c.terrainType };
+                segMap[key].count++;
+                segMap[key].revenue += parseInt(c.estimatedRevenue) || 0;
+            });
+            const segStats = Object.entries(segMap).sort((a, b) => b[1].count - a[1].count);
+
+            // Top 3 Sales by est. revenue
+            const salesStats = sales.map(s => {
+                const linked = customers.filter(c => c.salesId === s.id);
+                return {
+                    name: s.name,
+                    revenue: linked.reduce((sum, c) => sum + (parseInt(c.estimatedRevenue) || 0), 0),
+                    count: linked.length
+                };
+            }).sort((a, b) => b.revenue - a.revenue).slice(0, 3);
             // --- END: ADDED NEW STATS CALCULATION ---
 
             // Hapus variabel 'summary' jika tidak digunakan (untuk menjaga kebersihan kode)
@@ -1902,33 +1934,33 @@
             dashboardSection.innerHTML = `
                 <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Dashboard Overview 📊</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                    
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
                     <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-blue-500">
                         <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total Customers</p>
                         <p id="totalCustomers" class="text-4xl font-extrabold text-gray-50 mt-2">${customers.length}</p>
                     </div>
-                    
                     <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-green-500">
                         <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Active Fleet</p>
                         <p id="totalFleet" class="text-4xl font-extrabold text-gray-50 mt-2">${fleet.filter(f => f.fmsStatus === 'Active').length}</p>
                     </div>
-                    
                     <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-yellow-500">
                         <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Running Implementations</p>
                         <p id="progressRunning" class="text-4xl font-extrabold text-gray-50 mt-2">${runningProgress}</p>
                     </div>
-                    
                     <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-red-500">
                         <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total Est. Revenue</p>
                         <p class="text-lg sm:text-xl md:text-2xl font-extrabold text-gray-50 mt-2 break-words">${formatRupiah(totalEstimatedRevenue)}</p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-emerald-500">
+                        <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total Est. Profit</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-extrabold text-gray-50 mt-2 break-words">${formatRupiah(totalEstimatedProfit)}</p>
                     </div>
                     <div class="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 border-l-4 border-purple-500">
                         <p class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Acquisition (B/DS)</p>
                         <p class="text-4xl font-extrabold text-gray-50 mt-2">${bundlingCount} / ${directSellingCount}</p>
                         <p class="text-xs text-gray-500 mt-1">Total: ${bundlingCount + directSellingCount} Customer(s)</p>
                     </div>
-                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
@@ -1960,6 +1992,85 @@
                         <h3 class="text-2xl font-semibold text-gray-200 mb-4">Recent Activity Feed</h3>
                         <ul id="activityFeed" class="space-y-3 text-sm"></ul>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Overdue Alerts -->
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-red-900">
+                        <h3 class="text-2xl font-semibold text-red-400 mb-4">⚠️ Overdue PO <span class="text-sm text-gray-400 font-normal ml-2">Est. PO Date lewat, belum ada PO</span></h3>
+                        ${overdueCustomers.length === 0
+                            ? '<p class="text-gray-400 text-sm">Tidak ada yang overdue.</p>'
+                            : overdueCustomers.map(c => {
+                                const daysOver = Math.floor((today - new Date(c.estimatedPoDate)) / 86400000);
+                                const salesName = sales.find(s => s.id === c.salesId)?.name || '—';
+                                return `<div class="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
+                                    <div>
+                                        <p class="text-gray-100 font-medium text-sm">${c.companyName}</p>
+                                        <p class="text-gray-500 text-xs">${salesName} · Est. PO: ${c.estimatedPoDate}</p>
+                                    </div>
+                                    <span class="text-red-400 text-xs font-bold whitespace-nowrap ml-2">+${daysOver}d</span>
+                                </div>`;
+                              }).join('')
+                        }
+                    </div>
+
+                    <!-- Revenue per Pipeline Stage -->
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">💰 Revenue per Stage</h3>
+                        ${revenueByStage.length === 0
+                            ? '<p class="text-gray-400 text-sm">No data.</p>'
+                            : revenueByStage.map(s => `
+                                <div class="mb-3">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-sm text-gray-300">${s.name} <span class="text-gray-500">(${s.count})</span></span>
+                                        <span class="text-xs text-gray-400">${formatRupiah(s.revenue)}</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-2">
+                                        <div class="h-2 rounded-full" style="width:${Math.round(s.revenue/maxStageRevenue*100)}%; background-color:${s.color}"></div>
+                                    </div>
+                                </div>`).join('')
+                        }
+                    </div>
+
+                    <!-- Segmentation Breakdown -->
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-4">🗂️ Segmentation</h3>
+                        ${segStats.length === 0
+                            ? '<p class="text-gray-400 text-sm">No data.</p>'
+                            : segStats.map(([key, val]) => {
+                                const isOffRoad = val.terrain === 'Off the road';
+                                const badgeClass = isOffRoad ? 'bg-amber-900 text-amber-300' : 'bg-blue-900 text-blue-300';
+                                return `<div class="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass}">${val.terrain === 'Off the road' ? 'Off' : 'On'}</span>
+                                        <span class="text-gray-200 text-sm">${key.split(' — ')[1]}</span>
+                                    </div>
+                                    <span class="text-gray-400 text-sm">${val.count} · ${formatRupiah(val.revenue)}</span>
+                                </div>`;
+                              }).join('')
+                        }
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-4">🏆 Top 3 Sales <span class="text-sm text-gray-400 font-normal ml-2">by Est. Revenue</span></h3>
+                    ${salesStats.length === 0 ? '<p class="text-gray-400">No sales data yet.</p>' :
+                        salesStats.map((s, i) => {
+                            const medals = ['🥇', '🥈', '🥉'];
+                            const pct = salesStats[0].revenue > 0 ? (s.revenue / salesStats[0].revenue * 100) : 0;
+                            const barColors = ['bg-yellow-500', 'bg-gray-400', 'bg-amber-600'];
+                            return `
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-gray-200 font-semibold">${medals[i]} ${s.name}</span>
+                                    <span class="text-gray-400 text-sm">${formatRupiah(s.revenue)} · ${s.count} customer(s)</span>
+                                </div>
+                                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                    <div class="${barColors[i]} h-2.5 rounded-full" style="width: ${pct}%"></div>
+                                </div>
+                            </div>`;
+                        }).join('')
+                    }
                 </div>
             `;
 
