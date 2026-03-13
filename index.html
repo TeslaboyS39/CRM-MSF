@@ -1997,20 +1997,28 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Overdue Alerts -->
                     <div class="bg-gray-800 p-8 rounded-xl shadow-xl border border-red-900">
-                        <h3 class="text-2xl font-semibold text-red-400 mb-4">⚠️ Overdue PO <span class="text-sm text-gray-400 font-normal ml-2">Est. PO Date lewat, belum ada PO</span></h3>
+                        <h3 class="text-2xl font-semibold text-red-400 mb-1">⚠️ Overdue PO</h3>
+                        <p class="text-xs text-gray-400 mb-4">Est. PO Date lewat, belum ada PO · ${overdueCustomers.length} total</p>
                         ${overdueCustomers.length === 0
                             ? '<p class="text-gray-400 text-sm">Tidak ada yang overdue.</p>'
-                            : overdueCustomers.map(c => {
-                                const daysOver = Math.floor((today - new Date(c.estimatedPoDate)) / 86400000);
-                                const salesName = sales.find(s => s.id === c.salesId)?.name || '—';
-                                return `<div class="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
-                                    <div>
-                                        <p class="text-gray-100 font-medium text-sm">${c.companyName}</p>
-                                        <p class="text-gray-500 text-xs">${salesName} · Est. PO: ${c.estimatedPoDate}</p>
-                                    </div>
-                                    <span class="text-red-400 text-xs font-bold whitespace-nowrap ml-2">+${daysOver}d</span>
-                                </div>`;
-                              }).join('')
+                            : (() => {
+                                const rows = overdueCustomers.map((c, i) => {
+                                    const daysOver = Math.floor((today - new Date(c.estimatedPoDate)) / 86400000);
+                                    const salesName = sales.find(s => s.id === c.salesId)?.name || '—';
+                                    const hidden = i >= 5 ? 'overdue-extra hidden' : '';
+                                    return `<div class="flex justify-between items-start py-2 border-b border-gray-700 last:border-0 ${hidden}">
+                                        <div>
+                                            <p class="text-gray-100 font-medium text-sm">${c.companyName}</p>
+                                            <p class="text-gray-500 text-xs">${salesName} · Est. PO: ${c.estimatedPoDate}</p>
+                                        </div>
+                                        <span class="text-red-400 text-xs font-bold whitespace-nowrap ml-2">+${daysOver}d</span>
+                                    </div>`;
+                                }).join('');
+                                const toggle = overdueCustomers.length > 5
+                                    ? `<button onclick="toggleOverdue(this)" class="mt-3 text-xs text-blue-400 hover:text-blue-300">See ${overdueCustomers.length - 5} more ▼</button>`
+                                    : '';
+                                return rows + toggle;
+                              })()
                         }
                     </div>
 
@@ -2083,6 +2091,13 @@
             renderServiceTypeChart();
         }
 
+
+        function toggleOverdue(btn) {
+            const extras = btn.parentElement.querySelectorAll('.overdue-extra');
+            const isHidden = extras[0].classList.contains('hidden');
+            extras.forEach(el => el.classList.toggle('hidden'));
+            btn.textContent = isHidden ? 'See less ▲' : `See ${extras.length} more ▼`;
+        }
 
         // --- Render Status Tables in Settings ---
         function renderCustomerStatusesTable() {
