@@ -205,6 +205,7 @@
                 leadDate: row.lead_date,
                 estimatedPoDate: row.estimated_po_date,
                 estimatedPaymentDate: row.estimated_payment_date,
+                implementationDate: row.implementation_date,
                 trialDate: row.trial_date,
                 quotationDate: row.quotation_date,
                 poDate: row.po_date,
@@ -231,6 +232,7 @@
                 lead_date: customer.leadDate || null,
                 estimated_po_date: customer.estimatedPoDate || null,
                 estimated_payment_date: customer.estimatedPaymentDate || null,
+                implementation_date: customer.implementationDate || null,
                 trial_date: customer.trialDate || null,
                 quotation_date: customer.quotationDate || null,
                 po_date: customer.poDate || null,
@@ -674,6 +676,10 @@
                             <select id="salesId" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
                         </div>
                         <div>
+                            <label for="implementationDate" class="block text-sm font-medium text-gray-300">Implementation Date</label>
+                            <input type="date" id="implementationDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
+                        </div>
+                        <div>
                             <label for="trialDate" class="block text-sm font-medium text-gray-300">Trial Date</label>
                             <input type="date" id="trialDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
                         </div>
@@ -876,6 +882,7 @@
                         document.getElementById('estimatedPoDate').value = data.estimatedPoDate || '';
                         document.getElementById('estimatedPaymentDate').value = data.estimatedPaymentDate || '';
                         document.getElementById('salesId').value = data.salesId || '';
+                        document.getElementById('implementationDate').value = data.implementationDate || '';
                         document.getElementById('trialDate').value = data.trialDate || '';
                         document.getElementById('quotationDate').value = data.quotationDate || '';
                         document.getElementById('poDate').value = data.poDate || '';
@@ -956,6 +963,7 @@
                     estimatedPoDate: document.getElementById('estimatedPoDate').value,
                     estimatedPaymentDate: document.getElementById('estimatedPaymentDate').value,
                     salesId: document.getElementById('salesId').value || null,
+                    implementationDate: document.getElementById('implementationDate').value,
                     trialDate: document.getElementById('trialDate').value,
                     quotationDate: document.getElementById('quotationDate').value,
                     poDate: document.getElementById('poDate').value,
@@ -2027,6 +2035,13 @@
                     events.push({
                         title: `${customer.companyName} - Est. Payment Date (${customer.progressStatus})`,
                         start: customer.estimatedPaymentDate,
+                        color: color
+                    });
+                }
+                if (customer.implementationDate) {
+                    events.push({
+                        title: `${customer.companyName} - Implementation Date (${customer.progressStatus})`,
+                        start: customer.implementationDate,
                         color: color
                     });
                 }
