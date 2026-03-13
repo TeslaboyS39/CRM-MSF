@@ -40,16 +40,17 @@
 <body class="bg-gray-900 font-sans text-gray-100">
 
     <header class="bg-gray-800 shadow-xl sticky top-0 z-40 border-b border-gray-700">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <h1 class="text-3xl font-extrabold text-blue-400">Motor Sights Fleet <span class="text-gray-300">CRM</span></h1>
-            <nav class="space-x-4">
-                <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-chart-line"></i> Dashboard</button>
-                <button onclick="showSection('pipeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-stream"></i> Pipeline</button>
-                <button onclick="showSection('customers')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-users"></i> Customers</button>
-                <button onclick="showSection('fleet')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-truck"></i> Fleet</button>
-                <button onclick="showSection('timeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-calendar-alt"></i> Timeline</button>
-                <button onclick="showSection('reports')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-file-export"></i> Reports</button>
-                <button onclick="showSection('settings')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 p-2 rounded-lg"><i class="fas fa-cog"></i> Settings</button>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-extrabold text-blue-400 whitespace-nowrap">Motor Sights Fleet <span class="text-gray-300">CRM</span></h1>
+            <nav class="flex items-center space-x-1">
+                <button onclick="showSection('dashboard')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-chart-line"></i> Dashboard</button>
+                <button onclick="showSection('pipeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-stream"></i> Pipeline</button>
+                <button onclick="showSection('customers')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-users"></i> Customers</button>
+                <button onclick="showSection('fleet')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-truck"></i> Fleet</button>
+                <button onclick="showSection('sales')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-user-tie"></i> Sales</button>
+                <button onclick="showSection('timeline')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-calendar-alt"></i> Timeline</button>
+                <button onclick="showSection('reports')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-file-export"></i> Reports</button>
+                <button onclick="showSection('settings')" class="text-gray-400 hover:text-blue-400 font-medium transition duration-150 px-2 py-1.5 rounded-lg text-sm whitespace-nowrap"><i class="fas fa-cog"></i> Settings</button>
             </nav>
         </div>
     </header>
@@ -74,6 +75,7 @@
 
         <section id="customers" class="hidden space-y-8"></section>
         <section id="fleet" class="hidden space-y-8"></section>
+        <section id="sales" class="hidden space-y-8"></section>
 
         <section id="timeline" class="hidden space-y-8">
             <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Timeline Calendar (Installation & Due Dates) 📅</h2>
@@ -133,6 +135,7 @@
     <div id="customerStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
     <div id="fleetStatusModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
     <div id="taskModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
+    <div id="salesModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50"></div>
     
     <script>
         // ==============================================
@@ -145,6 +148,7 @@
         // ==============================================
         let customers = [];
         let fleet = [];
+        let sales = [];
         let customerStatuses = [];
         let fleetStatuses = [];
         let tasks = [];
@@ -205,7 +209,7 @@
                 quotationDate: row.quotation_date,
                 poDate: row.po_date,
                 estProfit: row.est_profit,
-                salesName: row.sales_name,
+                salesId: row.sales_id,
                 notes: row.notes
             };
         }
@@ -231,7 +235,7 @@
                 quotation_date: customer.quotationDate || null,
                 po_date: customer.poDate || null,
                 est_profit: customer.estProfit ? parseInt(customer.estProfit) : null,
-                sales_name: customer.salesName || null,
+                sales_id: customer.salesId || null,
                 notes: customer.notes || null
             };
         }
@@ -295,15 +299,25 @@
             };
         }
 
+        function mapSalesFromDB(row) {
+            return {
+                id: row.id,
+                name: row.name,
+                isActive: row.is_active,
+                createdAt: row.created_at
+            };
+        }
+
         // ==============================================
         // ASYNC DATA LOADING FROM SUPABASE
         // ==============================================
         async function loadAllData() {
             showLoading(true);
             try {
-                const [custRes, fleetRes, custStatusRes, fleetStatusRes, taskRes, activityRes] = await Promise.all([
+                const [custRes, fleetRes, salesRes, custStatusRes, fleetStatusRes, taskRes, activityRes] = await Promise.all([
                     supabaseClient.from('customers').select('*').order('created_at', { ascending: false }),
                     supabaseClient.from('fleet').select('*').order('created_at', { ascending: false }),
+                    supabaseClient.from('sales').select('*').order('name'),
                     supabaseClient.from('customer_statuses').select('*').order('sort_order'),
                     supabaseClient.from('fleet_statuses').select('*').order('sort_order'),
                     supabaseClient.from('tasks').select('*').order('created_at', { ascending: false }),
@@ -313,6 +327,7 @@
                 // Check for errors
                 if (custRes.error) console.error('Error loading customers:', custRes.error);
                 if (fleetRes.error) console.error('Error loading fleet:', fleetRes.error);
+                if (salesRes.error) console.error('Error loading sales:', salesRes.error);
                 if (custStatusRes.error) console.error('Error loading customer statuses:', custStatusRes.error);
                 if (fleetStatusRes.error) console.error('Error loading fleet statuses:', fleetStatusRes.error);
                 if (taskRes.error) console.error('Error loading tasks:', taskRes.error);
@@ -321,6 +336,7 @@
                 // Map data from DB format to JS format
                 customers = (custRes.data || []).map(mapCustomerFromDB);
                 fleet = (fleetRes.data || []).map(mapFleetFromDB);
+                sales = (salesRes.data || []).map(mapSalesFromDB);
                 customerStatuses = (custStatusRes.data || []).map(mapStatusFromDB);
                 fleetStatuses = (fleetStatusRes.data || []).map(mapStatusFromDB);
                 tasks = (taskRes.data || []).map(mapTaskFromDB);
@@ -548,6 +564,8 @@
                 renderCustomerSection();
             } else if (sectionId === 'fleet') {
                 renderFleetSection();
+            } else if (sectionId === 'sales') {
+                renderSalesSection();
             }
             
             renderAll();
@@ -652,8 +670,8 @@
                             <input type="date" id="estimatedPaymentDate" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100">
                         </div>
                         <div>
-                            <label for="salesName" class="block text-sm font-medium text-gray-300">Sales Name</label>
-                            <input type="text" id="salesName" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., Budi Santoso">
+                            <label for="salesId" class="block text-sm font-medium text-gray-300">Sales</label>
+                            <select id="salesId" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100"></select>
                         </div>
                         <div>
                             <label for="trialDate" class="block text-sm font-medium text-gray-300">Trial Date</label>
@@ -803,6 +821,27 @@
             </div>
         `;
         
+        document.getElementById('salesModal').innerHTML = `
+            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-purple-400">Sales Data</h3>
+                <form id="salesForm" class="space-y-4">
+                    <input type="hidden" id="salesFormId">
+                    <div>
+                        <label for="salesFormName" class="block text-sm font-medium text-gray-300">Name</label>
+                        <input type="text" id="salesFormName" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm p-2 text-gray-100 placeholder-gray-400" placeholder="e.g., Budi Santoso">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" id="salesFormIsActive" checked class="w-4 h-4 accent-purple-500">
+                        <label for="salesFormIsActive" class="text-sm font-medium text-gray-300">Active</label>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="toggleModal('salesModal')" class="bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-200">Cancel</button>
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">Save</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
         // --- Modal & Form Handlers ---
 
         function toggleModal(modalId, data = null) {
@@ -817,6 +856,7 @@
                 // Logic Populate Form
                 if (modalId === 'customerModal') {
                     populateProgressStatusSelect();
+                    populateSalesSelect();
                     if (data) {
                         document.getElementById('customerId').value = data.id;
                         document.getElementById('companyName').value = data.companyName;
@@ -835,7 +875,7 @@
                         document.getElementById('leadDate').value = data.leadDate || '';
                         document.getElementById('estimatedPoDate').value = data.estimatedPoDate || '';
                         document.getElementById('estimatedPaymentDate').value = data.estimatedPaymentDate || '';
-                        document.getElementById('salesName').value = data.salesName || '';
+                        document.getElementById('salesId').value = data.salesId || '';
                         document.getElementById('trialDate').value = data.trialDate || '';
                         document.getElementById('quotationDate').value = data.quotationDate || '';
                         document.getElementById('poDate').value = data.poDate || '';
@@ -875,6 +915,15 @@
                     document.getElementById('taskCustomerId').value = data.id;
                     document.getElementById('taskCustomerName').textContent = data.companyName;
                     renderTasks(data.id);
+                } else if (modalId === 'salesModal') {
+                    if (data) {
+                        document.getElementById('salesFormId').value = data.id;
+                        document.getElementById('salesFormName').value = data.name;
+                        document.getElementById('salesFormIsActive').checked = data.isActive;
+                    } else {
+                        document.getElementById('salesFormId').value = '';
+                        document.getElementById('salesFormIsActive').checked = true;
+                    }
                 }
             } else {
                 modal.classList.add('hidden');
@@ -906,7 +955,7 @@
                     leadDate: document.getElementById('leadDate').value,
                     estimatedPoDate: document.getElementById('estimatedPoDate').value,
                     estimatedPaymentDate: document.getElementById('estimatedPaymentDate').value,
-                    salesName: document.getElementById('salesName').value,
+                    salesId: document.getElementById('salesId').value || null,
                     trialDate: document.getElementById('trialDate').value,
                     quotationDate: document.getElementById('quotationDate').value,
                     poDate: document.getElementById('poDate').value,
@@ -1130,6 +1179,18 @@
                 const option = document.createElement('option');
                 option.value = status.name;
                 option.textContent = status.name;
+                select.appendChild(option);
+            });
+        }
+
+        function populateSalesSelect() {
+            const select = document.getElementById('salesId');
+            if (!select) return;
+            select.innerHTML = '<option value="">-- No Sales --</option>';
+            sales.filter(s => s.isActive).forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = s.name;
                 select.appendChild(option);
             });
         }
@@ -2443,6 +2504,117 @@
         }
 
         // --- Global Render Function ---
+        // ==============================================
+        // SALES CRUD & RENDER
+        // ==============================================
+        function renderSalesSection() {
+            const section = document.getElementById('sales');
+            section.innerHTML = `
+                <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Sales Team 👔</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <button onclick="toggleModal('salesModal')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        + Add New Sales
+                    </button>
+                    <input type="text" id="salesSearch" placeholder="Search sales..." oninput="renderSalesTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700" id="salesTable">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Customers</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            `;
+            renderSalesTable();
+        }
+
+        function renderSalesTable(searchTerm = '') {
+            const tableBody = document.getElementById('salesTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            const filtered = sales.filter(s => s.name.toLowerCase().includes(searchTerm));
+            filtered.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700';
+                const customerCount = customers.filter(c => c.salesId === s.id).length;
+                const statusBadge = s.isActive
+                    ? '<span class="bg-green-900 text-green-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">Active</span>'
+                    : '<span class="bg-gray-700 text-gray-400 text-xs font-semibold px-2.5 py-0.5 rounded-full">Inactive</span>';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${s.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${customerCount} customer(s)</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="editSales('${s.id}')" class="text-purple-400 hover:text-purple-300"><i class="fas fa-edit"></i> Edit</button>
+                        <button onclick="deleteSales('${s.id}')" class="text-red-500 hover:text-red-400"><i class="fas fa-trash-alt"></i> Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function editSales(id) {
+            const s = sales.find(s => s.id === id);
+            if (s) toggleModal('salesModal', s);
+        }
+
+        async function deleteSales(id) {
+            if (!confirm('Delete this sales member? Customers linked to them will be unlinked.')) return;
+            showLoading(true);
+            try {
+                const { error } = await supabaseClient.from('sales').delete().eq('id', id);
+                if (error) throw error;
+                sales = sales.filter(s => s.id !== id);
+                // Clear salesId from local customers array
+                customers.forEach(c => { if (c.salesId === id) c.salesId = null; });
+                renderSalesSection();
+            } catch (error) {
+                console.error('Error deleting sales:', error);
+                alert('Failed to delete sales member.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        document.getElementById('salesForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showLoading(true);
+            try {
+                const existingId = document.getElementById('salesFormId').value;
+                const payload = {
+                    name: document.getElementById('salesFormName').value,
+                    is_active: document.getElementById('salesFormIsActive').checked
+                };
+
+                if (existingId) {
+                    const { data, error } = await supabaseClient.from('sales').update(payload).eq('id', existingId).select();
+                    if (error) throw error;
+                    const idx = sales.findIndex(s => s.id === existingId);
+                    if (idx > -1) sales[idx] = mapSalesFromDB(data[0]);
+                } else {
+                    const { data, error } = await supabaseClient.from('sales').insert([payload]).select();
+                    if (error) throw error;
+                    sales.push(mapSalesFromDB(data[0]));
+                    sales.sort((a, b) => a.name.localeCompare(b.name));
+                }
+
+                toggleModal('salesModal');
+                renderSalesSection();
+            } catch (error) {
+                console.error('Error saving sales:', error);
+                alert('Failed to save sales member.');
+            } finally {
+                showLoading(false);
+            }
+        });
+
         function renderAll() {
             // Re-render data-only components
             renderDashboard();
@@ -2456,6 +2628,9 @@
             }
             if (!document.getElementById('fleet').classList.contains('hidden') && document.getElementById('fleetSearch')) {
                 renderFleetTable(document.getElementById('fleetSearch').value.toLowerCase() || '');
+            }
+            if (!document.getElementById('sales').classList.contains('hidden') && document.getElementById('salesSearch')) {
+                renderSalesTable(document.getElementById('salesSearch').value.toLowerCase() || '');
             }
             if (!document.getElementById('pipeline').classList.contains('hidden')) {
                 renderKanbanBoard();
