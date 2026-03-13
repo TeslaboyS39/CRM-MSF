@@ -164,6 +164,7 @@
         let customers = [];
         let fleet = [];
         let sales = [];
+        let customersPage = 1;
         let fleetPage = 1;
         let salesPage = 1;
         const PAGE_SIZE = 10;
@@ -1445,7 +1446,7 @@
                     <button onclick="toggleModal('customerModal')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
                         + Add New Customer (Create)
                     </button>
-                    <input type="text" id="customerSearch" placeholder="Search customers..." oninput="renderCustomersTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
+                    <input type="text" id="customerSearch" placeholder="Search customers..." oninput="customersPage=1; renderCustomersTable(this.value.toLowerCase())" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 w-full md:w-auto">
                 </div>
                 <div class="bg-gray-800 p-6 rounded-xl shadow-xl overflow-x-auto border border-gray-700">
                     <table class="min-w-full divide-y divide-gray-700" id="customersTable">
@@ -1472,9 +1473,10 @@
                         <tbody id="customersTableBody" class="bg-gray-800 divide-y divide-gray-700"></tbody>
                     </table>
                 </div>
+                <div id="customersPagination" class="flex justify-between items-center mt-4 text-sm text-gray-400"></div>
             `;
-            // Call render table content immediately after creating the structure
-            renderCustomersTable(document.getElementById('customerSearch')?.value || ''); 
+            customersPage = 1;
+            renderCustomersTable(document.getElementById('customerSearch')?.value || '');
         }
 
         // Creates the structural HTML for the Fleet page
@@ -1515,16 +1517,20 @@
             if (!tableBody) return;
             tableBody.innerHTML = '';
 
-            const filteredCustomers = customers.filter(c => 
-                c.companyName.toLowerCase().includes(searchTerm) || 
-                c.contactPerson.toLowerCase().includes(searchTerm) || 
+            const filteredCustomers = customers.filter(c =>
+                c.companyName.toLowerCase().includes(searchTerm) ||
+                c.contactPerson.toLowerCase().includes(searchTerm) ||
                 c.serviceType.toLowerCase().includes(searchTerm) ||
-                c.classificationType?.toLowerCase().includes(searchTerm) || 
-                c.terrainType?.toLowerCase().includes(searchTerm) || // Check new field
+                c.classificationType?.toLowerCase().includes(searchTerm) ||
+                c.terrainType?.toLowerCase().includes(searchTerm) ||
                 c.progressStatus.toLowerCase().includes(searchTerm)
             );
 
-            filteredCustomers.forEach(customer => {
+            const totalPages = Math.ceil(filteredCustomers.length / PAGE_SIZE);
+            if (customersPage > totalPages) customersPage = Math.max(1, totalPages);
+            const paged = filteredCustomers.slice((customersPage - 1) * PAGE_SIZE, customersPage * PAGE_SIZE);
+
+            paged.forEach(customer => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-700';
 
@@ -1561,6 +1567,10 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+            });
+            renderPaginationControls('customersPagination', customersPage, filteredCustomers.length, function(p) {
+                customersPage = p;
+                renderCustomersTable(document.getElementById('customerSearch')?.value.toLowerCase() || '');
             });
         }
 
