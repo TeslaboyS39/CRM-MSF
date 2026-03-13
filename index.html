@@ -2030,6 +2030,27 @@
                         color: color
                     });
                 }
+                if (customer.trialDate) {
+                    events.push({
+                        title: `${customer.companyName} - Trial Date (${customer.progressStatus})`,
+                        start: customer.trialDate,
+                        color: color
+                    });
+                }
+                if (customer.quotationDate) {
+                    events.push({
+                        title: `${customer.companyName} - Quotation Date (${customer.progressStatus})`,
+                        start: customer.quotationDate,
+                        color: color
+                    });
+                }
+                if (customer.poDate) {
+                    events.push({
+                        title: `${customer.companyName} - PO Date (${customer.progressStatus})`,
+                        start: customer.poDate,
+                        color: color
+                    });
+                }
             });
 
             fleet.forEach(item => {
