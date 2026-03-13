@@ -79,6 +79,14 @@
 
         <section id="timeline" class="hidden space-y-8">
             <h2 class="text-4xl font-bold text-gray-200 border-b-2 border-gray-700 pb-2 mb-4">Timeline Calendar (Installation & Due Dates) 📅</h2>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                <select id="timelineCustomerFilter" onchange="refreshTimeline()" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 w-full md:w-72">
+                    <option value="">-- All Customers --</option>
+                </select>
+                <button onclick="exportTimelineCSV()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 whitespace-nowrap">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+            </div>
             <div id="calendar" class="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-700"></div>
         </section>
 
@@ -2014,7 +2022,12 @@
         // --- Calendar/Timeline Logic (Updated to use status color) ---
         function getCalendarEvents() {
             const events = [];
-            customers.forEach(customer => {
+            const filterEl = document.getElementById('timelineCustomerFilter');
+            const filteredCustomerId = filterEl ? filterEl.value : '';
+            const filteredCustomers = filteredCustomerId
+                ? customers.filter(c => c.id === filteredCustomerId)
+                : customers;
+            filteredCustomers.forEach(customer => {
                 const status = customerStatuses.find(s => s.name === customer.progressStatus);
                 const color = status ? status.color : '#6b7280'; // Use color value directly
                 if (customer.leadDate) {
@@ -2068,7 +2081,10 @@
                 }
             });
 
-            fleet.forEach(item => {
+            const filteredFleet = filteredCustomerId
+                ? fleet.filter(f => f.customerId === filteredCustomerId)
+                : fleet;
+            filteredFleet.forEach(item => {
                 const status = fleetStatuses.find(s => s.name === item.fmsStatus);
                 const color = status ? status.color : '#6b7280'; // Use color value directly
                 if (item.installDate) {
@@ -2082,7 +2098,10 @@
                 }
             });
             
-            tasks.forEach(task => {
+            const filteredTasks = filteredCustomerId
+                ? tasks.filter(t => t.customerId === filteredCustomerId)
+                : tasks;
+            filteredTasks.forEach(task => {
                 if (task.dueDate && !task.isCompleted) {
                     const customer = customers.find(c => c.id === task.customerId);
                     const customerName = customer ? customer.companyName : 'N/A';
@@ -2097,7 +2116,48 @@
             return events;
         }
 
+        function populateTimelineFilter() {
+            const select = document.getElementById('timelineCustomerFilter');
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="">-- All Customers --</option>';
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.companyName;
+                select.appendChild(opt);
+            });
+            select.value = current;
+        }
+
+        function refreshTimeline() {
+            if (calendar) {
+                calendar.setOption('events', getCalendarEvents());
+                calendar.refetchEvents();
+            }
+        }
+
+        function exportTimelineCSV() {
+            const events = getCalendarEvents().sort((a, b) => new Date(a.start) - new Date(b.start));
+            if (events.length === 0) { alert('No events to export.'); return; }
+            const rows = [['Date', 'Event']];
+            events.forEach(e => rows.push([e.start, e.title]));
+            const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const filterEl = document.getElementById('timelineCustomerFilter');
+            const label = filterEl && filterEl.value
+                ? filterEl.options[filterEl.selectedIndex].text.replace(/\s+/g, '_')
+                : 'All';
+            a.download = `timeline_${label}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
         function renderTimeline() {
+            populateTimelineFilter();
             const calendarEl = document.getElementById('calendar');
             if (calendarEl && !calendar) {
                 calendar = new FullCalendar.Calendar(calendarEl, {
@@ -2112,7 +2172,7 @@
                         info.el.style.borderColor = info.event.backgroundColor || info.event.color;
                     },
                     height: 'auto',
-                    themeSystem: 'standard' // Ensure dark mode compatibility is handled by the overall CSS
+                    themeSystem: 'standard'
                 });
                 calendar.render();
             } else if (calendar) {
